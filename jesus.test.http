@@ -1,5 +1,5 @@
-
 ###
+# Test the swap endpoint
 POST http://localhost:1337/blinks/swap?inputMint=So11111111111111111111111111111111111111112&outputMint=4k3Dyjzvzp8e2WXLDwK8bkgGoGNt5UPTadMsRDp4y5Nn&amount=1000000&slippageBps=100
 Content-Type: application/json
 
@@ -8,6 +8,7 @@ Content-Type: application/json
 }
 
 ###
+# Test the transfer-sol endpoint
 POST http://localhost:1337/blinks/transfer-sol?amount=1&to=HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr
 Content-Type: application/json
 
@@ -16,12 +17,13 @@ Content-Type: application/json
 }
 
 ###
+# Test getting the transfer-sol endpoint information
 GET http://localhost:1337/blinks/transfer-sol
 Accept: application/json
 
 ###
-# Prueba del endpoint de stake para Solana
-POST http://localhost:1337/blinks/stake?fromPubkey=HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr&validatorPubkey=FRnC8BfQzz63cCyQGE8TxJrDEc5cFQ8SnJgdEzK36uG3&amount=1
+# Test the stake SOL endpoint for Solana
+POST http://localhost:1337/blinks/stake?validatorPubkey=FRnC8BfQzz63cCyQGE8TxJrDEc5cFQ8SnJgdEzK36uG3&amount=1
 Content-Type: application/json
 
 {
@@ -29,16 +31,31 @@ Content-Type: application/json
 }
 
 ###
+# Test getting the stake SOL endpoint information
 GET http://localhost:1337/blinks/stake
 Accept: application/json
 
 ###
-# Prueba del endpoint de memo para Solana
+# Test the stake BONK endpoint
+POST http://localhost:1337/blinks/stake-bonk?amount=1000&days=30
+Content-Type: application/json
+
+{
+    "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+}
+
+###
+# Test getting the stake BONK endpoint information
+GET http://localhost:1337/blinks/stake-bonk
+Accept: application/json
+
+###
+# Test the memo endpoint with OPTIONS method
 OPTIONS http://localhost:1337/blinks/memo?message=la%20pura%20ondita
 Content-Type: application/json
 
 ###
-# Prueba del endpoint de memo para Solana
+# Test the memo endpoint with POST method
 POST http://localhost:1337/blinks/memo?message=la%20pura%20ondita
 Content-Type: application/json
 
@@ -47,10 +64,11 @@ Content-Type: application/json
 }
 
 ###
+# Test getting the memo endpoint information
 GET http://localhost:1337/blinks/memo
 Accept: application/json
 
 ###
-# Prueba del JSON root .json)
+# Test getting the actions JSON root
 GET http://localhost:1337/actions.json
 Accept: application/json
