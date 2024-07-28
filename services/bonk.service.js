@@ -113,23 +113,14 @@ class BonkService {
             })
             .instruction();
 
-        ix.keys.push({
-            pubkey: new PublicKey("2PPAJ8P5JgKZjkxq4h3kFSwLcuakFYr4fbV68jGghWxi"),
-            isSigner: false,
-            isWritable: false,
-        });
-
         transaction.add(ix);
-        /// reverse the order of the transaction
-        transaction[0] = transaction[1];
-        transaction[1] = createDestinationTokenAccountInstruction;
+
         transaction.feePayer = userPublicKey;
         transaction.recentBlockhash = (await BonkService.connection.getLatestBlockhash()).blockhash;
         console.log('Transaction prepared:', transaction);
 
         return transaction; // Return the unsigned transaction
     }
-
 
     static async findCurrentNonce(userPublicKey) {
         let nonce = 0;
