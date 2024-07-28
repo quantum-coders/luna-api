@@ -88,7 +88,7 @@ class BonkService {
                 userPublicKey.toBuffer(),
                 BonkService.STAKE_MINT_PUBLIC_KEY.toBuffer() // Modified here
             ],
-            TOKEN_PROGRAM_ID
+            BonkService.PROGRAM_ID // Ensure that the correct program ID is used
         );
         let createDestinationTokenAccountInstruction;
         const destinationTokenAccountInfo = await BonkService.connection.getAccountInfo(destinationTokenAccountAddress[0]);
