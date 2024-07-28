@@ -91,10 +91,10 @@ class BonkService {
             ],
             TOKEN_PROGRAM_ID
         );
-
+        let  createDestinationTokenAccountInstruction;
         const destinationTokenAccountInfo = await BonkService.connection.getAccountInfo(destinationTokenAccountAddress[0]);
         if (!destinationTokenAccountInfo) {
-            const createDestinationTokenAccountInstruction = createAssociatedTokenAccountInstruction(
+            createDestinationTokenAccountInstruction = createAssociatedTokenAccountInstruction(
                 userPublicKey,
                 destinationTokenAccountAddress[0],
                 userPublicKey,
@@ -128,6 +128,9 @@ class BonkService {
         });
 
         transaction.add(ix);
+        /// reverse the order of the transaction
+        transaction[0] = transaction[1];
+        transaction[1] = createDestinationTokenAccountInstruction;
         transaction.feePayer = userPublicKey;
         transaction.recentBlockhash = (await BonkService.connection.getLatestBlockhash()).blockhash;
         console.log('Transaction prepared:', transaction);
