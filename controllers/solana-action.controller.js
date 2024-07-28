@@ -235,12 +235,29 @@ class SolanaActionController {
             },
 
             '/stake-bonk': {
-                label: 'Stake BONK',
-                href: '/blinks/stake-bonk?amount={amount}&days={days}',
-                parameters: [
-                    {label: 'Amount of BONK to stake', name: 'amount', required: true},
-                    {label: 'Lockup Duration (days)', name: 'days', required: true},
-                ],
+                title: 'Stake BONK',
+                icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+                description: 'Stake BONK to earn rewards.',
+                links: {
+                    actions: [
+                        {
+                            label: 'Stake BONK',
+                            href: '/blinks/stake-bonk?amount={amount}&days={days}',
+                            parameters: [
+                                {
+                                    label: 'Amount of BONK to stake',
+                                    name: 'amount',
+                                    required: true,
+                                },
+                                {
+                                    label: 'Lockup Duration (days)',
+                                    name: 'days',
+                                    required: true,
+                                },
+                            ],
+                        }
+                    ]
+                }
             }
 
         };
