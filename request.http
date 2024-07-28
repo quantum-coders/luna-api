@@ -1,0 +1,29 @@
+POST http://localhost:1337/ai/message
+Content-Type: application/json
+
+{
+    "prompt": "Hello World",
+    "model": "gpt-4"
+}
+
+###
+### AI Text to audio
+POST http://localhost:1337/ai/text-to-audio
+Content-Type: application/json
+
+{
+    "text": "Hello, I am a text to audio conversion service. I can convert any text to audio. Please provide me the text you want to convert to audio."
+}
+
+### AI Audio to text
+POST http://localhost:1337/ai/audio-to-text
+Content-Type: application/json
+
+{
+	"filePath": "sample-0.mp3"
+}
+
+###
+### Root Call
+GET http://localhost:1337
+

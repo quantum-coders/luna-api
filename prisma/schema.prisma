@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  name       String   @default("")
+  attachment String   @default("")
+  mime       String   @default("")
+  size       Int      @default(0)
+  source     String   @default("")
+  acl        String   @default("")
+  metas      Json?    @default("{}")
+  created    DateTime @default(now())
+  modified   DateTime @default(now())
+
+  @@map("attachment")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  uid       String    @unique @default(cuid())
+  username  String    @unique
+  email     String    @unique
+  firstname String
+  lastname  String
+  nicename  String
+  password  String?
+  type      String    @default("User")
+  status    String    @default("Active")
+  language  String    @default("es")
+  metas     Json?     @default("{}")
+  created   DateTime  @default(now())
+  modified  DateTime  @default(now())
+  messages  Message[]
+  chats     Chat[]
+  rims      Rim[]
+
+  @@map("user")
+}
+
+model Chat {
+  id         Int       @id @default(autoincrement())
+  idUser     Int       @map("id_user")
+  idExternal String?   @unique @map("external_id")
+  type       String    @default("telegram")
+  title      String? // Opcional, podría ser útil para grupos o chats temáticos
+  created    DateTime  @default(now()) @map("created")
+  modified   DateTime  @default(now()) @map("modified")
+  messages   Message[]
+
+  user User @relation(fields: [idUser], references: [id])
+
+  @@map("chat")
+}
+
+model Message {
+  id            Int      @id @default(autoincrement())
+  content       String   @db.LongText
+  messageType   String   @map("message_type")
+  idUser        Int      @map("id_user")
+  idChat        Int      @map("id_chat")
+  responseTo    Int?     @map("response_to")
+  attachmentUrl String?  @map("attachment_url")
+  created       DateTime @default(now()) @map("created")
+  modified      DateTime @default(now()) @map("modified")
+
+  parentMessage Message?  @relation("responses", fields: [responseTo], references: [id])
+  responses     Message[] @relation("responses")
+  user          User      @relation(fields: [idUser], references: [id])
+  chat          Chat      @relation(fields: [idChat], references: [id])
+
+  rims Rim[]
+
+  @@map("message")
+}
+
+model Rim {
+  id               Int       @id @default(autoincrement())
+  idMessage        Int       @map("id_message")
+  jsonData         Json      @map("json_data")
+  version          String?
+  userId           Int?      @map("user_id")
+  expired          DateTime?
+  interactionCount Int       @default(0)
+  type             String?
+  status           String    @default("active")
+  created          DateTime  @default(now())
+  modified         DateTime  @default(now())
+
+  message Message @relation(fields: [idMessage], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@map("rim")
+}

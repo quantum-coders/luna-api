@@ -1,0 +1,56 @@
+
+###
+POST http://localhost:1337/blinks/swap?inputMint=So11111111111111111111111111111111111111112&outputMint=4k3Dyjzvzp8e2WXLDwK8bkgGoGNt5UPTadMsRDp4y5Nn&amount=1000000&slippageBps=100
+Content-Type: application/json
+
+{
+  "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+}
+
+###
+POST http://localhost:1337/blinks/transfer-sol?amount=1&to=HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr
+Content-Type: application/json
+
+{
+  "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+}
+
+###
+GET http://localhost:1337/blinks/transfer-sol
+Accept: application/json
+
+###
+# Prueba del endpoint de stake para Solana
+POST http://localhost:1337/blinks/stake?fromPubkey=HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr&validatorPubkey=FRnC8BfQzz63cCyQGE8TxJrDEc5cFQ8SnJgdEzK36uG3&amount=1
+Content-Type: application/json
+
+{
+    "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+}
+
+###
+GET http://localhost:1337/blinks/stake
+Accept: application/json
+
+###
+# Prueba del endpoint de memo para Solana
+OPTIONS http://localhost:1337/blinks/memo?message=la%20pura%20ondita
+Content-Type: application/json
+
+###
+# Prueba del endpoint de memo para Solana
+POST http://localhost:1337/blinks/memo?message=la%20pura%20ondita
+Content-Type: application/json
+
+{
+  "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+}
+
+###
+GET http://localhost:1337/blinks/memo
+Accept: application/json
+
+###
+# Prueba del JSON root .json)
+GET http://localhost:1337/actions.json
+Accept: application/json
