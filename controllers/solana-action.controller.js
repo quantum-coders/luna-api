@@ -248,12 +248,7 @@ class SolanaActionController {
                                     label: 'Amount of BONK to stake',
                                     name: 'amount',
                                     required: true,
-                                },
-                                {
-                                    label: 'Lockup Duration (days)',
-                                    name: 'days',
-                                    required: true,
-                                },
+                                }
                             ],
                         }
                     ]
