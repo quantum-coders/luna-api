@@ -41,7 +41,7 @@ POST http://localhost:1337/blinks/stake-bonk?amount=1000&days=30
 Content-Type: application/json
 
 {
-    "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+    "account": "4RFG4gnF64dQyH3YFnKjcTcXL7HKosRCsu6GFfGwim5L"
 }
 
 ###
