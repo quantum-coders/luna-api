@@ -2,7 +2,7 @@ import {
     Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction,
 } from '@solana/web3.js';
 import {
-    getAccount, getAssociatedTokenAddress, getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID,
+    getAccount, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import * as anchor from '@coral-xyz/anchor';
 import BN from 'bn.js';
@@ -59,41 +59,60 @@ class BonkService {
         );
         console.log('stakeDepositReceiptPDA:', stakeDepositReceiptPDA.toBase58());
 
-        const userTokenAccount = await getOrCreateAssociatedTokenAccount(
-            BonkService.connection,
-            userPublicKey,
-            BonkService.TOKEN_PUBLIC_KEY,
-            userPublicKey,
-            true
+        const transaction = new Transaction();
+
+        // Create or get the user token account manually
+        const userTokenAccountAddress = await PublicKey.findProgramAddress(
+            [
+                userPublicKey.toBuffer(),
+                TOKEN_PROGRAM_ID.toBuffer(),
+                BonkService.TOKEN_PUBLIC_KEY.toBuffer()
+            ],
+            TOKEN_PROGRAM_ID
         );
-        console.log('userTokenAccount:', userTokenAccount.address.toBase58());
 
-        const userTokenBalance = await BonkService.connection.getTokenAccountBalance(userTokenAccount.address);
-        console.log('userTokenBalance:', userTokenBalance.value.amount);
-
-        if (userTokenBalance.value.amount < amountBN.toString()) {
-            throw new Error("Insufficient token balance for staking.");
+        const userTokenAccountInfo = await BonkService.connection.getAccountInfo(userTokenAccountAddress[0]);
+        if (!userTokenAccountInfo) {
+            const createUserTokenAccountInstruction = createAssociatedTokenAccountInstruction(
+                userPublicKey,
+                userTokenAccountAddress[0],
+                userPublicKey,
+                BonkService.TOKEN_PUBLIC_KEY
+            );
+            transaction.add(createUserTokenAccountInstruction);
         }
 
-        // wait 3 seconds to avoid nonce collision
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        const destinationTokenAccount = await getAssociatedTokenAddress(
-            BonkService.STAKE_MINT_PUBLIC_KEY,
-            userPublicKey
+        // Create or get the destination token account manually
+        const destinationTokenAccountAddress = await PublicKey.findProgramAddress(
+            [
+                userPublicKey.toBuffer(),
+                TOKEN_PROGRAM_ID.toBuffer(),
+                BonkService.STAKE_MINT_PUBLIC_KEY.toBuffer()
+            ],
+            TOKEN_PROGRAM_ID
         );
-        console.log('destinationTokenAccount:', destinationTokenAccount);
-        console.log('destinationTokenAccount:', destinationTokenAccount.toBase58());
 
+        const destinationTokenAccountInfo = await BonkService.connection.getAccountInfo(destinationTokenAccountAddress[0]);
+        if (!destinationTokenAccountInfo) {
+            const createDestinationTokenAccountInstruction = createAssociatedTokenAccountInstruction(
+                userPublicKey,
+                destinationTokenAccountAddress[0],
+                userPublicKey,
+                BonkService.STAKE_MINT_PUBLIC_KEY
+            );
+            transaction.add(createDestinationTokenAccountInstruction);
+        }
+
+        // Add the staking instruction after creating the token accounts
         const ix = await BonkService.program.methods
             .deposit(nonce, amountBN, lockupDuration)
             .accounts({
                 payer: userPublicKey,
                 owner: userPublicKey,
-                from: userTokenAccount.address,
+                from: userTokenAccountAddress[0],
                 vault: BonkService.VAULT_PUBLIC_KEY,
                 stakeMint: BonkService.STAKE_MINT_PUBLIC_KEY,
-                destination: destinationTokenAccount,
+                destination: destinationTokenAccountAddress[0],
                 stakePool: BonkService.STAKE_POOL_PDA,
                 stakeDepositReceipt: stakeDepositReceiptPDA,
                 tokenProgram: TOKEN_PROGRAM_ID,
@@ -108,14 +127,12 @@ class BonkService {
             isWritable: false,
         });
 
-        const tx = new Transaction();
-        tx.add(anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 6851612 }));
-        tx.add(ix);
-        tx.feePayer = userPublicKey;
-        tx.recentBlockhash = (await BonkService.connection.getLatestBlockhash()).blockhash;
-        console.log('Transaction prepared:', tx);
+        transaction.add(ix);
+        transaction.feePayer = userPublicKey;
+        transaction.recentBlockhash = (await BonkService.connection.getLatestBlockhash()).blockhash;
+        console.log('Transaction prepared:', transaction);
 
-        return tx; // Return the unsigned transaction
+        return transaction; // Return the unsigned transaction
     }
 
     static async findCurrentNonce(userPublicKey) {
