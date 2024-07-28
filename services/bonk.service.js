@@ -35,7 +35,7 @@ class BonkService {
     }
 
     static async lockBonk(userPublicKey, amount, days) {
-        console.log('lockBonk called with:', { userPublicKey: userPublicKey.toBase58(), amount, days });
+        console.log('lockBonk called with:', {userPublicKey: userPublicKey.toBase58(), amount, days});
 
         const nonce = await BonkService.findCurrentNonce(userPublicKey);
         console.log('Nonce found:', nonce);
@@ -86,12 +86,11 @@ class BonkService {
         const destinationTokenAccountAddress = await PublicKey.findProgramAddress(
             [
                 userPublicKey.toBuffer(),
-                TOKEN_PROGRAM_ID.toBuffer(),
-                BonkService.STAKE_MINT_PUBLIC_KEY.toBuffer()
+                BonkService.STAKE_MINT_PUBLIC_KEY.toBuffer() // Modified here
             ],
             TOKEN_PROGRAM_ID
         );
-        let  createDestinationTokenAccountInstruction;
+        let createDestinationTokenAccountInstruction;
         const destinationTokenAccountInfo = await BonkService.connection.getAccountInfo(destinationTokenAccountAddress[0]);
         if (!destinationTokenAccountInfo) {
             createDestinationTokenAccountInstruction = createAssociatedTokenAccountInstruction(
@@ -137,6 +136,7 @@ class BonkService {
 
         return transaction; // Return the unsigned transaction
     }
+
 
     static async findCurrentNonce(userPublicKey) {
         let nonce = 0;
