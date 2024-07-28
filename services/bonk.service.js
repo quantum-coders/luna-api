@@ -72,15 +72,8 @@ class BonkService {
         );
 
         const userTokenAccountInfo = await BonkService.connection.getAccountInfo(userTokenAccountAddress[0]);
-        if (!userTokenAccountInfo) {
-            const createUserTokenAccountInstruction = createAssociatedTokenAccountInstruction(
-                userPublicKey,
-                userTokenAccountAddress[0],
-                userPublicKey,
-                BonkService.TOKEN_PUBLIC_KEY
-            );
-            transaction.add(createUserTokenAccountInstruction);
-        }
+
+        console.log('userTokenAccountAddress:', userTokenAccountAddress[0].toBase58());
 
         // Create or get the destination token account manually
         const destinationTokenAccountAddress = await PublicKey.findProgramAddress(
