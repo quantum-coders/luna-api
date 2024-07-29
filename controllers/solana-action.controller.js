@@ -282,7 +282,7 @@ class SolanaActionController {
             const unsignedTx = await BonkService.lockBonk(userPublicKey, amount, days);
 
             // Encode the transaction for the response
-            const encodedTransaction = unsignedTx
+            const encodedTransaction = unsignedTx.serialize().toString('base64');
 
             return res.respond({
                 status: 200,
