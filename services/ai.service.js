@@ -393,6 +393,27 @@ class AIService {
 					},
 				},
 			},
+			// stake bonk, receives amount and number of days
+			{
+				type: 'function',
+				function: {
+					name: 'stakeBonk',
+					description: 'Stakes BONK for a certain number of days.',
+					parameters: {
+						type: 'object',
+						properties: {
+							amount: {
+								type: 'number',
+								description: 'The amount of BONK to stake.',
+							},
+							days: {
+								type: 'number',
+								description: 'The number of days to stake BONK.',
+							},
+						},
+					},
+				},
+			},
 			// get wallet info
 			{
 				type: 'function',
