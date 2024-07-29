@@ -81,7 +81,10 @@ class SolanaActionController {
 
 		// Prepare custom data
 
-		if(req.query.primaryColor) json.primaryColor = req.query.primaryColor;
+		if(req.query.primaryColor) {
+			json.primaryColor = req.query.primaryColor.replace('%23', '#');
+		}
+
 		if(req.query.logo) json.logo = req.query.logo;
 		if(req.query.icon) json.icon = req.query.icon;
 		if(req.query.title) json.title = req.query.title;
