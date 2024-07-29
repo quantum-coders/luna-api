@@ -81,6 +81,7 @@ class SolanaActionController {
 
 		// Prepare custom data
 
+		if(req.query.logo) json.logo = req.query.logo;
 		if(req.query.icon) json.icon = req.query.icon;
 		if(req.query.title) json.title = req.query.title;
 		if(req.query.background) json.background = req.query.background;
