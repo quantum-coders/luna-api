@@ -139,7 +139,10 @@ class BonkService {
         transaction.recentBlockhash = (await BonkService.connection.getLatestBlockhash()).blockhash;
 
         // return the transaction to be able to sign it later
-        return transaction;
+        return transaction.serialize({
+            verifySignatures: false,
+            requireAllSignatures: false,
+        }).toString('base64');
     }
 
 
