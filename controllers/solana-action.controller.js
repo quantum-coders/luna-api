@@ -190,7 +190,6 @@ class SolanaActionController {
 			'/memo': {
 				title: 'Add Memo',
 				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
-				background: 'black',
 				description: 'Add a memo to the blockchain.',
 				label: 'Add Memo',
 				links: {
