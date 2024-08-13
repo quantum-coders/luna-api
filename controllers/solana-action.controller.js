@@ -355,6 +355,8 @@ class SolanaActionController {
 			});
 		}
 
+		console.log(new PublicKey(account));
+
 		try {
 			const encodedTransaction = await SolanaTransactionBuilder.buildTransferSolTransaction(
 				new PublicKey(account),
