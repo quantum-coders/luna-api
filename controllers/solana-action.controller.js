@@ -310,15 +310,16 @@ class SolanaActionController {
 		const inputMint = req.query.inputMint;
 		const outputMint = req.query.outputMint;
 		const amount = req.query.amount;
-		const slippageBps = req.query.slippageBps;
+		const slippageBps = req.query.slippageBps || 5000;
 
-		if(!account || !inputMint || !outputMint || !amount || !slippageBps) {
+		if(!account || !inputMint || !outputMint || !amount) {
 			return res.respond({
 				status: 400,
-				message: 'Bad Request: Missing required fields',
+				message: 'Bad Request: Missing required fields, field missing: ' + (!account ? 'account' : !inputMint ? 'inputMint' : !outputMint ? 'outputMint' : 'amount'),
 			});
 		}
 
+		console.log("Slippage: ", slippageBps);
 		try {
 			const encodedTransaction = await SolanaTransactionBuilder.buildSwapTransaction(
 				new PublicKey(account),

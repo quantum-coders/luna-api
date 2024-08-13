@@ -26,39 +26,54 @@ class UserController extends PrimateController {
 	static async authenticate(req, res, next) {
 		try {
 			const {wallet, network} = req.body;
-			let message = 'User authenticated successfully';
 
-			// check for valid wallet address with regex
-			if(!WalletService.validateWallet(wallet, network)) return res.respond({
+			if (!wallet || !network) return res.respond({
 				status: 400,
 				message: 'Error: Invalid wallet address',
 			});
 
-			let user = await UserService.findByWallet(wallet, network);
+			if (!WalletService.validateWallet(wallet, network)) return res.respond({
+				status: 400,
+				message: 'Error: Invalid wallet address',
+			});
+
+			let signedUser = req?.user?.payload;
+
+			let user, message
+
+			if (!!signedUser?.id) {
+				user = await UserService.findById(signedUser.id);
+			} else {
+				user = await UserService.findByWallet(wallet, network);
+			}
 
 			if (!user) {
+
 				user = await UserService.create({
 					username: wallet,
 					type: 'User',
 					status: 'Active',
 				});
 
-				// create the wallet
-
-				await WalletService.create({
-					idUser: user.id,
-					address: wallet,
-					network,
-				})
-
 				message = 'User created successfully';
 			}
+
+			// get or create Wallet
+
+			const walletData = await WalletService.getOrCreate({
+				idUser: user.id,
+				address: wallet,
+				network,
+			})
 
 
 			const token = await jwt.signAccessToken(user);
 
 			return res.respond({
-				data: user,
+				data: {
+					...user,
+					...walletData,
+				},
 				props: {token},
 				message,
 			});

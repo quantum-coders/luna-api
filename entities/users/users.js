@@ -1,4 +1,5 @@
 import { getRouter, auth, setupRoute } from '@thewebchimp/primate';
+import optionalAuth  from "../../middlewares/optionalAuth.js";
 import UserController from './user.controller.js';
 const router = getRouter();
 
@@ -9,7 +10,7 @@ const options = {
 };
 
 // Functions -----------------------------------------------------------------------------------------------------------
-router.post('/authenticate', UserController.authenticate);
+router.post('/authenticate', optionalAuth, UserController.authenticate);
 
 // register
 router.post('/register', UserController.register);

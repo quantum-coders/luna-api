@@ -88,7 +88,7 @@ model Rim {
   idMessage        Int       @map("id_message")
   jsonData         Json      @map("json_data")
   version          String?
-  userId           Int?      @map("user_id")
+  idUser           Int?      @map("id_user")
   expired          DateTime?
   interactionCount Int       @default(0)
   type             String?
@@ -97,14 +97,14 @@ model Rim {
   modified         DateTime  @default(now())
 
   message Message @relation(fields: [idMessage], references: [id])
-  user    User?   @relation(fields: [userId], references: [id])
+  user    User?   @relation(fields: [idUser], references: [id])
 
   @@map("rim")
 }
 
 model Wallet {
   id        Int     @id @default(autoincrement())
-  userId    Int     @map("user_id")
+  idUser    Int     @map("id_user")
   network   String  @default("solana") @map("network") @db.VarChar(255)
   address   String  @db.VarChar(255)
   secretKey String? @map("secret_key") @db.Text
@@ -114,21 +114,25 @@ model Wallet {
   created  DateTime @default(now())
   modified DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [idUser], references: [id])
 
   @@unique([network, address])
   @@map("wallet")
 }
 
 model LinkedAccount {
-  id         Int      @id @default(autoincrement())
-  idUser     Int      @map("id_user")
+  id         Int    @id @default(autoincrement())
+  idUser     Int?   @map("id_user")
   provider   String
-  idProvider String   @map("id_provider")
-  created    DateTime @default(now())
-  modified   DateTime @default(now())
+  idProvider String @map("id_provider")
+  token      String @default("")
+  status     String @default("pending")
+  metas      Json?  @default("{}")
 
-  user User @relation(fields: [idUser], references: [id])
+  created  DateTime @default(now())
+  modified DateTime @default(now())
+
+  user User? @relation(fields: [idUser], references: [id])
 
   @@unique([provider, idProvider])
   @@map("linked_account")

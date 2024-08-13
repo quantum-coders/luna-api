@@ -16,20 +16,57 @@ class WalletService {
 		}
 	}
 
-	static async create({ idUser, address, network }) {
+	/**
+	 * Static method to get or create a wallet entry in the database.
+	 *
+	 * @param {Object} params - The parameters object.
+	 * @param {number} params.idUser - The ID of the user.
+	 * @param {string} params.address - The wallet address.
+	 * @param {string} params.network - The network of the wallet (e.g., Ethereum, Bitcoin).
+	 * @returns {Promise<{wallet: string, isNew: boolean}>} - An object containing the wallet address and a flag indicating if a new record was created.
+	 * @throws {Error} - Throws an error if any parameter is missing or if the wallet address is invalid.
+	 */
+	static async getOrCreate({idUser, address, network}) {
 		try {
-			// Crear una nueva wallet en la base de datos
-			return await prisma.wallet.create({
-				data: {
+
+			if (!idUser || !address || !network) {
+				throw new Error(`Parameter missing: ${idUser ? 'idUser' : address ? 'address' : 'network'}`);
+			}
+
+
+			if (!this.validateWallet(address, network)) {
+				throw new Error('Invalid wallet address');
+			}
+
+
+			let isNew = false;
+			let wallet = await prisma.wallet.findFirst({
+				where: {
 					address,
 					network,
-					user: {
-						connect: {
-							id: idUser,
-						},
-					},
+					idUser,
 				},
 			});
+
+			if (!wallet) {
+				wallet = await prisma.wallet.create({
+					data: {
+						address,
+						network,
+						user: {
+							connect: {
+								id: idUser,
+							},
+						},
+					},
+				});
+				isNew = true;
+			}
+
+			return {
+				wallet: wallet.address,
+				isNew,
+			}
 		} catch (e) {
 			throw e;
 		}
