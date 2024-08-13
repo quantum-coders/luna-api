@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import AIService from '../services/ai.service.js';
 import RIMService from '../services/rim.service.js';
-import { Readable } from 'stream';
 
 class AIController {
 	/**
@@ -29,6 +28,7 @@ class AIController {
 			stop = '',
 		} = body;
 
+		// Sanitize input
 		if(!model || !prompt) {
 			const missingFields = [];
 			if(!model) missingFields.push('model');

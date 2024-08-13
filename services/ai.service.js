@@ -87,6 +87,13 @@ class AIService {
 		return { maxTokens, provider };
 	}
 
+	/**
+	 * Solves the provider URL based on the given provider name.
+	 *
+	 * @param {string} provider - The name of the provider (e.g., 'openai', 'perplexity', 'groq').
+	 * @returns {string} - The URL corresponding to the given provider.
+	 * @throws {Error} - Throws an error if the provider is not recognized.
+	 */
 	static solveProviderUrl(provider) {
 		let url;
 
