@@ -3,34 +3,76 @@ import queryString from 'query-string';
 import axios from 'axios';
 
 // Services
-import { PrimateController } from '@thewebchimp/primate';
+import {jwt, PrimateController} from '@thewebchimp/primate';
 import UserService from './user.service.js';
 import AttachmentService from '../attachments/attachment.service.js';
+import WalletService from "../../services/wallet.service.js";
 
 class UserController extends PrimateController {
 
-	//region Auth ------------------------------------------------------------------------------------------------------
+	/**
+	 * Authenticate a user based on the provided wallet address.
+	 * If the user does not exist, a new user is created.
+	 * A JWT is signed and returned in the response.
+	 *
+	 * @param {Object} req - The request object.
+	 * @param {Object} req.body - The body of the request containing user data.
+	 * @param {string} req.body.wallet - The wallet address provided by the user for authentication.
+	 * @param {Object} res - The response object.
+	 * @param {Function} next - The next middleware function.
+	 * @returns {Promise<void>} Responds with user data and a JWT token or an error message.
+	 * @throws Will return a 400 status with an error message if wallet address is invalid or an error occurs during user creation/authentication.
+	 */
 	static async authenticate(req, res, next) {
 		try {
-			const { user, accessToken } = await UserService.authenticate(req.body);
+			const {wallet, network} = req.body;
+			let message = 'User authenticated successfully';
 
-			res.respond({
-				data: user,
-				message: 'Account login successful',
-				props: { accessToken },
+			// check for valid wallet address with regex
+			if(!WalletService.validateWallet(wallet, network)) return res.respond({
+				status: 400,
+				message: 'Error: Invalid wallet address',
 			});
 
-		} catch(e) {
+			let user = await UserService.findByWallet(wallet, network);
 
-			let message = 'Error authenticating user: ' + e.message;
+			if (!user) {
+				user = await UserService.create({
+					username: wallet,
+					type: 'User',
+					status: 'Active',
+				});
 
-			res.respond({
-				status: 400,
+				// create the wallet
+
+				await WalletService.create({
+					idUser: user.id,
+					address: wallet,
+					network,
+				})
+
+				message = 'User created successfully';
+			}
+
+
+			const token = await jwt.signAccessToken(user);
+
+			return res.respond({
+				data: user,
+				props: {token},
 				message,
 			});
-		}
+		} catch (e) {
 
-	}
+			console.log(e);
+
+			return res.respond({
+				status: 400,
+				message: 'Error creating user: ' + e.message,
+			});
+		}
+	};
+
 
 	static async register(req, res, next) {
 		try {
@@ -40,11 +82,11 @@ class UserController extends PrimateController {
 				data,
 				message: 'Account created successfully',
 			});
-		} catch(e) {
+		} catch (e) {
 
 			// check if user already exists
-			if(e.message.includes('user_username_key')) {
-				e.message = `Username ${ req.body.username } already exists`;
+			if (e.message.includes('user_username_key')) {
+				e.message = `Username ${req.body.username} already exists`;
 			}
 
 			res.respond({
@@ -63,7 +105,7 @@ class UserController extends PrimateController {
 				message: 'Account login successful',
 			});
 
-		} catch(e) {
+		} catch (e) {
 
 			console.error(e);
 
@@ -85,7 +127,7 @@ class UserController extends PrimateController {
 				message: 'Password recovery successful',
 			});
 
-		} catch(e) {
+		} catch (e) {
 
 			let message = 'Error recovering password: ' + e.message;
 
@@ -111,7 +153,7 @@ class UserController extends PrimateController {
 			prompt: 'consent',
 		});
 
-		const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${ params }`;
+		const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 
 		res.redirect(googleLoginUrl);
 	};
@@ -120,7 +162,7 @@ class UserController extends PrimateController {
 		// Get the code from body
 		const code = req.body.code;
 
-		if(code) {
+		if (code) {
 
 			let token;
 
@@ -133,7 +175,7 @@ class UserController extends PrimateController {
 					grant_type: 'authorization_code',
 					code,
 				});
-			} catch(e) {
+			} catch (e) {
 				console.error(e);
 				res.respond({
 					status: 400,
@@ -151,10 +193,10 @@ class UserController extends PrimateController {
 				// get user info
 				userInfo = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo?alt=json', {
 					headers: {
-						Authorization: `Bearer ${ accessToken }`,
+						Authorization: `Bearer ${accessToken}`,
 					},
 				});
-			} catch(e) {
+			} catch (e) {
 				console.error(e);
 				res.respond({
 					status: 400,
@@ -168,9 +210,9 @@ class UserController extends PrimateController {
 			const user = await UserService.findByEmail(userInfo.data.email);
 
 			// If user exists
-			if(user) {
+			if (user) {
 				// If the user is not active
-				if(user.status !== 'Active') {
+				if (user.status !== 'Active') {
 					res.respond({
 						status: 401,
 						result: 'error',
@@ -180,7 +222,7 @@ class UserController extends PrimateController {
 					const accessToken = await jwt.signAccessToken(user);
 
 					res.respond({
-						data: { ...user, accessToken },
+						data: {...user, accessToken},
 						message: 'Account login successful',
 					});
 				}
@@ -214,14 +256,14 @@ class UserController extends PrimateController {
 				status: true,
 				data: user,
 			});
-		} catch(e) {
+		} catch (e) {
 			next(createError(404, e.message));
 		}
 	};
 
 	static async updateProfile(req, res, next) {
 		try {
-			if(req.params.id === 'me') req.params.id = req.user.payload.id;
+			if (req.params.id === 'me') req.params.id = req.user.payload.id;
 
 			const data = await UserService.updateProfile(req.user.payload.id, req.body);
 
@@ -229,7 +271,7 @@ class UserController extends PrimateController {
 				data,
 				message: 'Profile updated successfully',
 			});
-		} catch(e) {
+		} catch (e) {
 
 			res.respond({
 				status: 400,
@@ -254,26 +296,26 @@ class UserController extends PrimateController {
 		} = req.query;
 
 		// Set options
-		const options = { size, width, height, bold, background, color, fontSize, border, chars };
+		const options = {size, width, height, bold, background, color, fontSize, border, chars};
 
 		// covert options to query string
 		const query = queryString.stringify(options);
 
 		try {
 
-			if(!req.params.id) throw new Error('No user id provided');
+			if (!req.params.id) throw new Error('No user id provided');
 
 			const user = await UserService.findById(req.params.id);
 			let attachment;
 
 			// check if we got user.metas.idAvatar
-			if(user.metas.idAvatar) {
+			if (user.metas.idAvatar) {
 				// get the attachment
 				attachment = await AttachmentService.findById(user.metas.idAvatar);
 			}
 
 			// if we have an attachment, return the location of the attachment
-			if(attachment && attachment.metas?.location) {
+			if (attachment && attachment.metas?.location) {
 
 				res.redirect(attachment.metas.location);
 
@@ -286,16 +328,16 @@ class UserController extends PrimateController {
 				initials = initials.trim();
 
 				// if the initials are empty, use username
-				if(!initials) initials = user.username;
+				if (!initials) initials = user.username;
 
 				// if still empty, use NA
-				if(!initials) initials = 'NA';
+				if (!initials) initials = 'NA';
 
-				res.redirect(`https://ui-avatars.com/api/?name=${ initials }&${ query }`);
+				res.redirect(`https://ui-avatars.com/api/?name=${initials}&${query}`);
 			}
-		} catch(e) {
+		} catch (e) {
 			console.error('Error getting avatar, using fallback:', e);
-			res.redirect(`https://ui-avatars.com/api/?name=NA&${ query }`);
+			res.redirect(`https://ui-avatars.com/api/?name=NA&${query}`);
 		}
 	};
 
@@ -309,7 +351,7 @@ class UserController extends PrimateController {
 				message: 'Account switch successful',
 			});
 
-		} catch(e) {
+		} catch (e) {
 
 			console.error(e);
 
@@ -322,7 +364,6 @@ class UserController extends PrimateController {
 		}
 	}
 
-	//endregion
 }
 
 export default UserController;

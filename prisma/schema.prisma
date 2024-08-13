@@ -24,23 +24,25 @@ model Attachment {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  uid       String    @unique @default(cuid())
-  username  String    @unique
-  email     String    @unique
-  firstname String
-  lastname  String
-  nicename  String
-  password  String?
-  type      String    @default("User")
-  status    String    @default("Active")
-  language  String    @default("es")
-  metas     Json?     @default("{}")
-  created   DateTime  @default(now())
-  modified  DateTime  @default(now())
-  messages  Message[]
-  chats     Chat[]
-  rims      Rim[]
+  id            Int             @id @default(autoincrement())
+  uid           String          @unique @default(cuid())
+  username      String          @unique
+  email         String?         @unique
+  firstname     String
+  lastname      String
+  nicename      String
+  password      String?
+  type          String          @default("User")
+  status        String          @default("Active")
+  language      String          @default("en")
+  metas         Json?           @default("{}")
+  created       DateTime        @default(now())
+  modified      DateTime        @default(now())
+  messages      Message[]
+  chats         Chat[]
+  rims          Rim[]
+  Wallet        Wallet[]
+  LinkedAccount LinkedAccount[]
 
   @@map("user")
 }
@@ -98,4 +100,36 @@ model Rim {
   user    User?   @relation(fields: [userId], references: [id])
 
   @@map("rim")
+}
+
+model Wallet {
+  id        Int     @id @default(autoincrement())
+  userId    Int     @map("user_id")
+  network   String  @default("solana") @map("network") @db.VarChar(255)
+  address   String  @db.VarChar(255)
+  secretKey String? @map("secret_key") @db.Text
+  isMain    Boolean @default(false) @map("is_main")
+  metas     Json?   @default("{}")
+
+  created  DateTime @default(now())
+  modified DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([network, address])
+  @@map("wallet")
+}
+
+model LinkedAccount {
+  id         Int      @id @default(autoincrement())
+  idUser     Int      @map("id_user")
+  provider   String
+  idProvider String   @map("id_provider")
+  created    DateTime @default(now())
+  modified   DateTime @default(now())
+
+  user User @relation(fields: [idUser], references: [id])
+
+  @@unique([provider, idProvider])
+  @@map("linked_account")
 }

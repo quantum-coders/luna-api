@@ -3,7 +3,7 @@ import Joi from 'joi';
 const schema = Joi.object({
 	id: Joi.number().integer().positive().optional(),
 	uid: Joi.string().guid({ version: [ 'uuidv4' ] }).optional(), // Adjusting for UUID v4, adjust if needed
-	username: Joi.string().alphanum().required(),
+	username: Joi.string().alphanum().optional().default(''),
 	email: Joi.string().optional().default(''),
 	firstname: Joi.string().optional().default(''),
 	lastname: Joi.string().optional().default(''),
@@ -11,7 +11,7 @@ const schema = Joi.object({
 	password: Joi.string().optional().default(''),
 	type: Joi.string().valid('User', 'Admin', 'SuperAdmin').default('User'),
 	status: Joi.string().valid('Active', 'Inactive').default('Active'),
-	language: Joi.string().valid('en', 'es').default('es'),
+	language: Joi.string().valid('en', 'es').default('en'),
 	metas: Joi.object().default({}),
 	created: Joi.date(),
 	modified: Joi.date(),
