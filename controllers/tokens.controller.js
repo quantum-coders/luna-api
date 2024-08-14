@@ -1,9 +1,9 @@
-import TokenService from "../services/tokens.service.js";
+import TokenService from '../services/tokens.service.js';
 
-class TokensController{
-	static async getTokens(req, res){
+class TokensController {
+	static async getTokens(req, res) {
 		try {
-			console.log('Getting tokens----------->');
+			console.log('Getting tokens');
 
 			const { id } = req.params;
 
@@ -12,7 +12,7 @@ class TokensController{
 				data: tokens,
 				message: 'Tokens retrieved successfully',
 			});
-		} catch (error) {
+		} catch(error) {
 			res.respond({
 				status: 500,
 				message: error.message,

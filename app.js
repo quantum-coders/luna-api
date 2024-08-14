@@ -1,6 +1,3 @@
-import {ACTIONS_CORS_HEADERS_MIDDLEWARE} from '@solana/actions';
-import cors from 'cors';
-
 import primate from '@thewebchimp/primate';
 
 import {router as ai} from './routes/ai.js';
@@ -22,7 +19,9 @@ primate.app.use((req, res, next) => {
 primate.setup();
 await primate.start();
 
-primate.app.use('/', defaultRouter);
 primate.app.use('/ai', ai);
 primate.app.use('/blinks', blinks);
 primate.app.use('/tokens', tokens);
+
+// Must be last because of the catch-all
+primate.app.use('/', defaultRouter);
