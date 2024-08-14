@@ -8,7 +8,7 @@ class TokensService{
 			if(id){
 				tokens = await fetch(`https://tokens.jup.ag/token/${id}`);
 			}else{
-				tokens = await fetch('https://tokens.jup.ag/tokens');
+				tokens = await fetch('https://tokens.jup.ag/tokens?tags=verified');
 			}
 			if(!tokens.ok) {
 				throw new Error('Failed to retrieve tokens');
