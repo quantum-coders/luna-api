@@ -216,7 +216,7 @@ class SolanaActionController {
 					actions: [
 						{
 							label: 'Swap Tokens',
-							href: '/blinks/swap?inputMint={inputMint}&outputMint={outputMint}&amount={amount}',
+							href: '/blinks/swap?inputMint={inputMint}&outputMint={outputMint}&amount={amount}&slippageBps={slippageBps}',
 							parameters: [
 								{
 									label: 'Input Mint',
@@ -233,6 +233,11 @@ class SolanaActionController {
 									name: 'amount',
 									required: true,
 								},
+								{
+									label: 'Slippage',
+									name: 'slippageBps',
+									required: false,
+								}
 							],
 						},
 					],
@@ -310,7 +315,7 @@ class SolanaActionController {
 		const inputMint = req.query.inputMint;
 		const outputMint = req.query.outputMint;
 		const amount = req.query.amount;
-		const slippageBps = req.query.slippageBps || 5000;
+		const slippageBps = req.query.slippageBps || 0.5;
 
 		if(!account || !inputMint || !outputMint || !amount) {
 			return res.respond({
