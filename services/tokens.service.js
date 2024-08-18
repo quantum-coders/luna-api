@@ -1,6 +1,3 @@
-
-
-
 class TokensService{
 	static async getTokens(id = null){
 		try {
