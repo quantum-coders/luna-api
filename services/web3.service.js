@@ -22,6 +22,7 @@ class Web3Service {
 		const secretKey = new Uint8Array(process.env.WALLET_SECRET.split(',').map(Number));
 
 		const sharedSecret = nacl.box.before(bs58.decode(encryptionPK), secretKey);
+		console.log('Shared secret:', sharedSecret);
 
 		const decryptedData = nacl.box.open.after(bs58.decode(payload), bs58.decode(nonce), sharedSecret);
 		if(!decryptedData) {
