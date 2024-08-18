@@ -4,6 +4,7 @@ import {router as ai} from './routes/ai.js';
 import {router as blinks} from './routes/blinks.js';
 import {router as defaultRouter} from './routes/default.js';
 import {router as tokens} from './routes/tokens.js';
+import {router as web3} from './routes/web3.js';
 
 primate.app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');
@@ -22,6 +23,7 @@ await primate.start();
 primate.app.use('/ai', ai);
 primate.app.use('/blinks', blinks);
 primate.app.use('/tokens', tokens);
+primate.app.use('/web3', web3);
 
 // Must be last because of the catch-all
 primate.app.use('/', defaultRouter);

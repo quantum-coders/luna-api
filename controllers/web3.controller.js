@@ -2,13 +2,13 @@ import Web3Service from '../services/web3.service.js';
 
 class Web3Controller {
 
-	static async createDeepLink(req, res) {
+	static async generatePublicKey(req, res) {
 		try {
 			console.log('Creating deep link');
 
-			const { provider } = req.body;
+			const { provider, url } = req.body;
 
-			const deepLink = await Web3Service.createDeepLink(id);
+			const deepLink = Web3Service.generatePublicKey(provider, url);
 			res.respond({
 				data: deepLink,
 				message: 'Deep link created successfully',
