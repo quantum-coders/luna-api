@@ -23,7 +23,7 @@ class Web3Service {
 
 		const sharedSecret = nacl.box.before(bs58.decode(encryptionPK), secretKey);
 
-		const decryptedData = nacl.box.open.after(bs58.decode(payloas), bs58.decode(nonce), sharedSecret);
+		const decryptedData = nacl.box.open.after(bs58.decode(payload), bs58.decode(nonce), sharedSecret);
 		if(!decryptedData) {
 			throw new Error('Unable to decrypt data');
 		}
