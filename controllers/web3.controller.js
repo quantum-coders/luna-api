@@ -20,6 +20,25 @@ class Web3Controller {
 			});
 		}
 	}
+
+	static async decodeWalletPayload(req, res) {
+		try {
+			console.log('Decoding wallet payload');
+
+			const { encryptionPK, nonce, payload } = req.body;
+
+			const decodedPayload = Web3Service.decodeWalletPayload(encryptionPK, nonce, payload);
+			res.respond({
+				data: decodedPayload,
+				message: 'Payload decoded successfully',
+			});
+		} catch(error) {
+			res.respond({
+				status: 500,
+				message: error.message,
+			});
+		}
+	}
 }
 
 export default Web3Controller;

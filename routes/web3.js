@@ -4,4 +4,6 @@ const router = getRouter();
 
 router.get('/public-key', Web3Controller.generatePublicKey);
 
+router.post('/decode-wallet', Web3Controller.decodeWalletPayload);
+
 export { router };
