@@ -28,7 +28,9 @@ class Web3Service {
 		if(!decryptedData) {
 			throw new Error('Unable to decrypt data');
 		}
-		return JSON.parse(Buffer.from(decryptedData).toString('utf8'));
+		const decryptedObject = JSON.parse(Buffer.from(decryptedData).toString('utf8'));
+		decryptedObject.payload = `${decryptedObject.public_key}-${decryptedObject.session}`;
+		return decryptedObject;
 	}
 }
 
