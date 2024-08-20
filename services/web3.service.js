@@ -17,12 +17,29 @@ class Web3Service {
 		return bs58.encode(keyPair.publicKey);
 	}
 
+	static encodeWalletPayload(encryptionPK, payload) {
+
+		const secretKey = new Uint8Array(process.env.WALLET_SECRET.split(',').map(Number));
+		const sharedSecret = nacl.box.before(bs58.decode(encryptionPK), secretKey);
+
+		const nonce = nacl.randomBytes(24);
+
+		const encryptedPayload = nacl.box.after(
+			Buffer.from(JSON.stringify(payload)),
+			nonce,
+			sharedSecret,
+		);
+
+		return {
+			nonce: bs58.encode(nonce),
+			payload: bs58.encode(encryptedPayload),
+		};
+	}
+
 	static decodeWalletPayload(encryptionPK, nonce, payload) {
 
 		const secretKey = new Uint8Array(process.env.WALLET_SECRET.split(',').map(Number));
-
 		const sharedSecret = nacl.box.before(bs58.decode(encryptionPK), secretKey);
-		console.log('Shared secret:', sharedSecret);
 
 		const decryptedData = nacl.box.open.after(bs58.decode(payload), bs58.decode(nonce), sharedSecret);
 		if(!decryptedData) {

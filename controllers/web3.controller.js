@@ -21,6 +21,25 @@ class Web3Controller {
 		}
 	}
 
+	static async encodeWalletPayload(req, res) {
+		try {
+			console.log('Encoding wallet payload');
+
+			const { encryptionPK, payload } = req.body;
+
+			const encodedPayload = Web3Service.encodeWalletPayload(encryptionPK, payload);
+			res.respond({
+				data: encodedPayload,
+				message: 'Payload encoded successfully',
+			});
+		} catch(error) {
+			res.respond({
+				status: 500,
+				message: error.message,
+			});
+		}
+	}
+
 	static async decodeWalletPayload(req, res) {
 		try {
 			console.log('Decoding wallet payload');
