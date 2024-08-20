@@ -11,8 +11,8 @@ import {
 	TransactionInstruction,
 } from '@solana/web3.js';
 import dotenv from 'dotenv';
-import {Wallet} from '@coral-xyz/anchor';
-import {getMint} from "@solana/spl-token";
+import { Wallet } from '@coral-xyz/anchor';
+import { getMint } from '@solana/spl-token';
 
 dotenv.config();
 
@@ -25,8 +25,8 @@ class SolanaTransactionBuilder {
 
 	async buildTransferSolTransaction(fromPubkey, toPubkey, amount) {
 		const minimumBalance = await this.connection.getMinimumBalanceForRentExemption(0);
-		if (amount * LAMPORTS_PER_SOL < minimumBalance) {
-			throw new Error(`Insufficient SOL to cover rent exemption for ${toPubkey.toBase58()}`);
+		if(amount * LAMPORTS_PER_SOL < minimumBalance) {
+			throw new Error(`Insufficient SOL to cover rent exemption for ${ toPubkey.toBase58() }`);
 		}
 
 		const transferInstruction = SystemProgram.transfer({
@@ -35,7 +35,7 @@ class SolanaTransactionBuilder {
 			lamports: amount * LAMPORTS_PER_SOL,
 		});
 
-		const {blockhash, lastValidBlockHeight} = await this.connection.getLatestBlockhash();
+		const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
 		const transaction = new Transaction({
 			feePayer: fromPubkey,
 			blockhash,
@@ -50,8 +50,8 @@ class SolanaTransactionBuilder {
 
 	async buildStakeTransaction(fromPubkey, validatorPubkey, amount) {
 		const minStake = await this.connection.getStakeMinimumDelegation();
-		if (amount < minStake.value) {
-			throw new Error(`The minimum stake amount is ${minStake.value}`);
+		if(amount < minStake.value) {
+			throw new Error(`The minimum stake amount is ${ minStake.value }`);
 		}
 
 		const stakeKeypair = Keypair.generate();
@@ -101,9 +101,9 @@ class SolanaTransactionBuilder {
 		}).toString('base64');
 	}
 
-	async buildSwapTransaction(publicKey, inputMint, outputMint, amount, slippageBps = 0.5, destinationWallet = null, ) {
+	async buildSwapTransaction(publicKey, inputMint, outputMint, amount, slippageBps = 0.5, destinationWallet = null) {
 
-		console.log("Slippage received: ", slippageBps);
+		console.log('Slippage received: ', slippageBps);
 		const inputMintData = await getMint(this.connection, new PublicKey(inputMint));
 		const outputMintData = await getMint(this.connection, new PublicKey(outputMint));
 		if(!inputMintData || !outputMintData) {
@@ -111,7 +111,7 @@ class SolanaTransactionBuilder {
 		}
 
 		// max of slippage is 10%
-		if(slippageBps > 10){
+		if(slippageBps > 10) {
 			throw new Error('Slippage must be less than 10%');
 		}
 
@@ -120,17 +120,17 @@ class SolanaTransactionBuilder {
 		const slippagePercentage = slippageBps * 100;
 
 		const walletPublicKey = new PublicKey(publicKey);
-		let urlGet = `${process.env.JUPITER_QUOTE_API_URL}`;
-		urlGet += `?inputMint=${inputMint}&outputMint=${outputMint}`;
-		urlGet += `&amount=${inputAmount}&slippageBps=${slippagePercentage}`;
+		let urlGet = `${ process.env.JUPITER_QUOTE_API_URL }`;
+		urlGet += `?inputMint=${ inputMint }&outputMint=${ outputMint }`;
+		urlGet += `&amount=${ inputAmount }&slippageBps=${ slippagePercentage }`;
 		urlGet += `&swapMode=ExactIn`;
 
 		const quoteResponseData = await fetch(urlGet);
 		const quoteResponse = await quoteResponseData.json();
 
-		const response = await fetch(`${process.env.JUPITER_SWAP_API_URL}`, {
+		const response = await fetch(`${ process.env.JUPITER_SWAP_API_URL }`, {
 			method: 'POST',
-			headers: {'Content-Type': 'application/json'},
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				dynamicComputeUnitLimit: true,
 				prioritizationFeeLamports: 'auto',
@@ -141,7 +141,7 @@ class SolanaTransactionBuilder {
 		});
 		const jsonResponse = await response.json();
 
-		if (jsonResponse?.error || !jsonResponse?.swapTransaction) {
+		if(jsonResponse?.error || !jsonResponse?.swapTransaction) {
 			throw new Error(jsonResponse.error);
 		}
 		return jsonResponse.swapTransaction;
