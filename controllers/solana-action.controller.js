@@ -437,6 +437,7 @@ class SolanaActionController {
 			);
 			return res.respond({
 				status: 200,
+				data: { transaction: encodedTransaction },
 				props: { transaction: encodedTransaction },
 				message: 'Transaction created successfully',
 			});
