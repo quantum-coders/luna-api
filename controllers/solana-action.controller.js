@@ -2,6 +2,9 @@ import SolanaTransactionBuilder from '../services/solana-transactions.service.js
 import { PublicKey } from '@solana/web3.js';
 import { ACTIONS_CORS_HEADERS } from '@solana/actions';
 import BonkService from '../services/bonk.service.js';
+import UserService from '../entities/users/user.service.js';
+import BlinkService from '../services/blink.service.js';
+import { PrimateService } from '@thewebchimp/primate';
 
 class SolanaActionController {
 	static async handleAction(req, res) {
@@ -74,6 +77,24 @@ class SolanaActionController {
 
 	static async handleGetAction(path, req, res) {
 		const actionMapping = SolanaActionController.getActionMapping();
+
+		// check if path starts with cb-
+		if(path.startsWith('/cb-')) {
+			// remove cb- from path
+			path = path.replace('/cb-', '');
+
+			// get blink by uid
+			const blink = await PrimateService.findBy({ uid: path }, 'blink');
+
+			if(!blink) {
+				return res.respond({
+					status: 404,
+					message: 'Blink not found',
+				});
+			}
+
+			return res.json(blink.data);
+		}
 
 		const json = actionMapping[path];
 
@@ -237,7 +258,7 @@ class SolanaActionController {
 									label: 'Slippage',
 									name: 'slippageBps',
 									required: false,
-								}
+								},
 							],
 						},
 					],
@@ -293,7 +314,6 @@ class SolanaActionController {
 
 			console.log('Unsigned transaction:', encodedTransaction);
 
-
 			return res.respond({
 				status: 200,
 				data: { transaction: encodedTransaction },
@@ -324,7 +344,7 @@ class SolanaActionController {
 			});
 		}
 
-		console.log("Slippage: ", slippageBps);
+		console.log('Slippage: ', slippageBps);
 		try {
 			const encodedTransaction = await SolanaTransactionBuilder.buildSwapTransaction(
 				new PublicKey(account),
@@ -445,6 +465,42 @@ class SolanaActionController {
 			return res.respond({
 				status: 500,
 				message: 'Error processing transaction: ' + error.message,
+			});
+		}
+	}
+
+	static async createBlink(req, res) {
+
+		// Get user from req
+		const signedUser = req.user.payload;
+		if(!signedUser) {
+			return res.respond({
+				status: 401,
+				message: 'Unauthorized',
+			});
+		}
+
+		const user = await UserService.findById(signedUser.id);
+		if(!user) {
+			return res.respond({
+				status: 404,
+				message: 'User not found',
+			});
+		}
+
+		try {
+			const blink = await BlinkService.createBlink(user, req.body);
+
+			return res.respond({
+				status: 200,
+				data: blink,
+				message: 'Blink created successfully',
+			});
+		} catch(error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error creating blink: ' + error.message,
 			});
 		}
 	}

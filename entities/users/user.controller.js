@@ -266,9 +266,8 @@ class UserController extends PrimateController {
 
 			// delete password
 			delete user.password;
-
-			res.status(200).json({
-				status: true,
+			
+			res.respond({
 				data: user,
 			});
 		} catch (e) {
