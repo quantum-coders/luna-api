@@ -1,7 +1,8 @@
 import SolanaTransactionBuilder from '../services/solana-transactions.service.js';
-import { PublicKey } from '@solana/web3.js';
-import { ACTIONS_CORS_HEADERS } from '@solana/actions';
+import {PublicKey} from '@solana/web3.js';
+import {ACTIONS_CORS_HEADERS} from '@solana/actions';
 import BonkService from '../services/bonk.service.js';
+import MetaplexService from "../services/metaplex.service.js";
 
 class SolanaActionController {
 	static async handleAction(req, res) {
@@ -10,12 +11,12 @@ class SolanaActionController {
 		const method = req.method.toUpperCase();
 		const body = req.body;
 
-		if(path === '/actions.json') {
+		if (path === '/actions.json') {
 			return SolanaActionController.handleGetActionsJson(req, res);
 		}
 
 		try {
-			switch(method) {
+			switch (method) {
 				case 'POST':
 					return await SolanaActionController.handlePostAction(path, req, res);
 				case 'GET':
@@ -28,7 +29,7 @@ class SolanaActionController {
 						message: 'Method Not Allowed',
 					});
 			}
-		} catch(error) {
+		} catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 500,
@@ -60,6 +61,14 @@ class SolanaActionController {
 					'pathPattern': '/blinks/stake-bonk',
 					'apiPath': '/blinks/stake-bonk',
 				},
+				{
+					'pathPattern': '/blinks/mint-nft',
+					'apiPath': '/blinks/mint-nft',
+				},
+				{
+					'pathPattern': '/blinks/create-nft-collection',
+					'apiPath': '/blinks/create-nft-collection',
+				}
 
 			],
 		};
@@ -73,39 +82,40 @@ class SolanaActionController {
 	}
 
 	static async handleGetAction(path, req, res) {
+		console.log("HEEEEEEEEEEEEEEEEEEEEEEEEEEEY")
 		const actionMapping = SolanaActionController.getActionMapping();
-
+		console.log("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
 		const json = actionMapping[path];
 
 		console.log(req.query);
 
 		// Prepare custom data
 
-		if(req.query.primaryColor) {
+		if (req.query.primaryColor) {
 			json.primaryColor = req.query.primaryColor.replace('%23', '#');
 		}
 
-		if(req.query.logo) json.logo = req.query.logo;
-		if(req.query.icon) json.icon = req.query.icon;
-		if(req.query.title) json.title = req.query.title;
-		if(req.query.background) json.background = req.query.background;
-		if(req.query.description) json.description = req.query.description;
+		if (req.query.logo) json.logo = req.query.logo;
+		if (req.query.icon) json.icon = req.query.icon;
+		if (req.query.title) json.title = req.query.title;
+		if (req.query.background) json.background = req.query.background;
+		if (req.query.description) json.description = req.query.description;
 
-		if(req.query.actions?.label) json.links.actions[0].label = req.query.actions.label;
+		if (req.query.actions?.label) json.links.actions[0].label = req.query.actions.label;
 
 		// check if we have req.query.p
-		if(req.query.p) {
+		if (req.query.p) {
 			// for each key in req.query.p
-			for(const key in req.query.p) {
+			for (const key in req.query.p) {
 				// search key in json.links.actions[0].parameters, it should be the name
 				let parameter = json.links.actions[0].parameters.find(p => p.name === key);
 				const index = json.links.actions[0].parameters.findIndex(p => p.name === key);
 
-				json.links.actions[0].parameters[index] = { ...parameter, ...req.query.p[key] };
+				json.links.actions[0].parameters[index] = {...parameter, ...req.query.p[key]};
 			}
 		}
 
-		if(actionMapping[path]) {
+		if (actionMapping[path]) {
 			return res.json(actionMapping[path]);
 		} else {
 			return res.respond({
@@ -122,10 +132,12 @@ class SolanaActionController {
 			'/memo': SolanaActionController.handlePostMemo,
 			'/swap': SolanaActionController.handlePostSwap,
 			'/stake-bonk': SolanaActionController.handlePostBonkStake,
+			'/mint-nft': SolanaActionController.handlePostMintNFT,
+			'/create-nft-collection': SolanaActionController.handlePostCreateNFTCollection,
 		};
 
 		const actionHandler = actionMapping[path];
-		if(actionHandler) {
+		if (actionHandler) {
 			return actionHandler(req, res);
 		} else {
 			return res.respond({
@@ -137,6 +149,51 @@ class SolanaActionController {
 
 	static getActionMapping() {
 		return {
+			'/mint-nft': {
+				title: 'Mint NFT',
+				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+				description: 'Mint a new NFT',
+				links: {
+					actions: [
+						{
+							label: 'Mint NFT',
+							href: '/blinks/mint-nft?collection={collection}&metadata={metadata}',
+							parameters: [
+								{
+									label: 'Collection Pubkey',
+									name: 'collection',
+									required: true,
+								},
+								{
+									label: 'metadata',
+									name: 'metadata',
+									required: true,
+								},
+							]
+						}
+					]
+				}
+			},
+			'/create-nft-collection': {
+				title: 'Create NFT Collection',
+				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+				description: 'Create a new NFT collection',
+				links: {
+					actions: [
+						{
+							label: 'Create NFT Collection',
+							href: '/blinks/create-nft-collection?metadata={metadata}',
+							parameters: [
+								{
+									label: 'metadata',
+									name: 'metadata',
+									required: true,
+								}
+							]
+						}
+					]
+				}
+			},
 			'/transfer-sol': {
 				title: 'Transfer Native SOL',
 				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
@@ -274,11 +331,11 @@ class SolanaActionController {
 	}
 
 	static async handlePostBonkStake(req, res) {
-		const { account } = req.body;
+		const {account} = req.body;
 		const amount = req.query.amount; // Assuming amount in BONK
 		const days = req.query.days; // Add days parameter for lockup duration
 
-		if(!account || !amount || !days) {
+		if (!account || !amount || !days) {
 			return res.respond({
 				status: 400,
 				message: 'Bad Request: Missing required fields',
@@ -296,12 +353,12 @@ class SolanaActionController {
 
 			return res.respond({
 				status: 200,
-				data: { transaction: encodedTransaction },
-				props: { transaction: encodedTransaction },
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
 				message: 'LockBonk transaction created successfully',
 			});
 
-		} catch(error) {
+		} catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 500,
@@ -311,13 +368,13 @@ class SolanaActionController {
 	}
 
 	static async handlePostSwap(req, res) {
-		const { account } = req.body;
+		const {account} = req.body;
 		const inputMint = req.query.inputMint;
 		const outputMint = req.query.outputMint;
 		const amount = req.query.amount;
 		const slippageBps = req.query.slippageBps || 0.5;
 
-		if(!account || !inputMint || !outputMint || !amount) {
+		if (!account || !inputMint || !outputMint || !amount) {
 			return res.respond({
 				status: 400,
 				message: 'Bad Request: Missing required fields, field missing: ' + (!account ? 'account' : !inputMint ? 'inputMint' : !outputMint ? 'outputMint' : 'amount'),
@@ -335,11 +392,11 @@ class SolanaActionController {
 			);
 			return res.respond({
 				status: 200,
-				data: { transaction: encodedTransaction },
-				props: { transaction: encodedTransaction },
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
 				message: 'Transaction created successfully',
 			});
-		} catch(error) {
+		} catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 500,
@@ -349,12 +406,12 @@ class SolanaActionController {
 	}
 
 	static async handlePostTransferSol(req, res) {
-		const { account } = req.body;
+		const {account} = req.body;
 
 		const to = req.query.to;
 		const amount = req.query.amount;
 
-		if(!account || !to || !amount) {
+		if (!account || !to || !amount) {
 			return res.respond({
 				status: 400,
 				message: 'Bad Request: Missing required fields',
@@ -372,11 +429,11 @@ class SolanaActionController {
 
 			return res.respond({
 				status: 200,
-				data: { transaction: encodedTransaction },
-				props: { transaction: encodedTransaction },
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
 				message: 'Transaction created successfully',
 			});
-		} catch(error) {
+		} catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 400,
@@ -386,11 +443,11 @@ class SolanaActionController {
 	}
 
 	static async handlePostStake(req, res) {
-		const { account } = req.body;
+		const {account} = req.body;
 		const validatorPubkey = req.query.validatorPubkey;
 		const amount = req.query.amount;
 
-		if(!account || !validatorPubkey || !amount) {
+		if (!account || !validatorPubkey || !amount) {
 			return res.respond({
 				status: 400,
 				message: 'Bad Request: Missing required fields',
@@ -405,11 +462,11 @@ class SolanaActionController {
 			);
 			return res.respond({
 				status: 200,
-				data: { transaction: encodedTransaction },
-				props: { transaction: encodedTransaction },
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
 				message: 'Transaction created successfully',
 			});
-		} catch(error) {
+		} catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 500,
@@ -420,10 +477,10 @@ class SolanaActionController {
 
 	static async handlePostMemo(req, res) {
 
-		const { account } = req.body;
+		const {account} = req.body;
 		const message = req.query.message;
 
-		if(!account || !message) {
+		if (!account || !message) {
 			return res.respond({
 				status: 400,
 				message: 'Bad Request: Missing required fields',
@@ -437,11 +494,11 @@ class SolanaActionController {
 			);
 			return res.respond({
 				status: 200,
-				data: { transaction: encodedTransaction },
-				props: { transaction: encodedTransaction },
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
 				message: 'Transaction created successfully',
 			});
-		} catch(error) {
+		} catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 500,
@@ -449,6 +506,75 @@ class SolanaActionController {
 			});
 		}
 	}
+
+	/// using MetaplexService create the handlePostMintNFT function
+
+	static async handlePostMintNFT(req, res) {
+		const {account} = req.body;
+		const collection = req.query.collection;
+		const metadata = req.query.metadata;
+
+		if (!account || !collection || !metadata) {
+			return res.respond({
+				status: 400,
+				message: 'Bad Request: Missing required fields',
+			});
+		}
+
+		try {
+			const encodedTransaction = await MetaplexService.mintNftFromCollection(
+				account,
+				collection,
+				metadata,
+			);
+			return res.respond({
+				status: 200,
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
+				message: 'Transaction created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error processing transaction: ' + error.message,
+			});
+		}
+	}
+
+	static async handlePostCreateNFTCollection(req, res) {
+		console.log("Creating NFT Collection------------------------>");
+		const {account} = req.body;
+		const metadata = req.query.metadata;
+
+		if (!account || !metadata) {
+			return res.respond({
+				status: 400,
+				message: `Bad Request: parameter missing: ${!account ? 'account' : 'metadata'}`,
+			});
+		}
+
+		try {
+			const encodedTransaction = await MetaplexService.createCollectionTransaction(
+				account,
+				metadata,
+			);
+			return res.respond({
+				status: 200,
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
+				message: 'Transaction created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error processing transaction: ' + error.message,
+			});
+		}
+	}
+
+
 }
 
 export default SolanaActionController;

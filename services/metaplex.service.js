@@ -1,99 +1,119 @@
 import {createUmi} from '@metaplex-foundation/umi-bundle-defaults';
+import {createCollection, fetchCollection, create, createCollectionV1} from '@metaplex-foundation/mpl-core';
+import {PublicKey} from '@solana/web3.js';
+import {mplCandyMachine} from '@metaplex-foundation/mpl-candy-machine'
+
 import {
-    Connection,
-    ComputeBudgetProgram, Transaction, sendAndConfirmTransaction, Keypair, PublicKey, SystemProgram,
-} from '@solana/web3.js';
-import * as ed25519 from '@noble/ed25519';
-import 'dotenv/config';
-import {Metaplex, keypairIdentity} from '@metaplex-foundation/js';
-import {
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-    createAssociatedTokenAccountInstruction,
-    createTransferInstruction,
-    getAssociatedTokenAddress, TOKEN_PROGRAM_ID
-} from "@solana/spl-token";
+	createNoopSigner,
+	generateSigner,
+	signerIdentity,
+	keypairIdentity,
+	transactionBuilder
+} from "@metaplex-foundation/umi";
 
 const umi = createUmi(process.env.SOLANA_RPC_URL);
-umi.context = {
-    ...umi.context,
-    eddsa: ed25519,
-};
-
-const SOLANA_CONNECTION = new Connection(process.env.SOLANA_RPC_URL, {commitment: 'finalized'});
-const METAPLEX = Metaplex.make(SOLANA_CONNECTION);
 
 class MetaplexService {
-    static async createCollectionNft(settings = {}, userKeyPair) {
-        try {
-            umi.identity = keypairIdentity(userKeyPair);
-            METAPLEX.use(keypairIdentity(userKeyPair));
-            const {nft: collectionNft, signers, instructions} = await METAPLEX.nfts().create(settings);
-            return collectionNft.address.toBase58();
-        } catch (error) {
-            console.error(`Error:`, error);
-            throw error;
-        }
-    }
+	static async createCollectionTransaction2(fromPubKey, metadata = {}) {
+		// create a collection signer
+		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
+		umi.use(mplCandyMachine())
+		const collectionSigner = generateSigner(umi)
 
-    static async transferBonkTokens(userKeyPair, amount) {
-        try {
-            const BONK_TOKEN_MINT = new PublicKey('DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263');
-            const PAYMENT_ACCOUNT = new PublicKey('Dr8Mkn8Yja4pKQamNhDLyMdEuG4g4gM7G4Et3CkUiHiA');
-            umi.identity = keypairIdentity(userKeyPair);
-            const userTokenAccount = await getAssociatedTokenAddress(BONK_TOKEN_MINT, userKeyPair.publicKey);
-            const accountInfo = await SOLANA_CONNECTION.getAccountInfo(userTokenAccount);
-            let instructions = [];
-            if (!accountInfo) {
-                instructions.push(createAssociatedTokenAccountInstruction(
-                    userKeyPair.publicKey,
-                    userTokenAccount,
-                    userKeyPair.publicKey,
-                    BONK_TOKEN_MINT,
-                    TOKEN_PROGRAM_ID,
-                    ASSOCIATED_TOKEN_PROGRAM_ID
-                ));
-            }
+		const collectionMetadata = {
+			name: metadata.name || 'My Collection',
+			uri: metadata.uri || 'https://mycollection.com',
+			...metadata,
+		};
 
-            // Crea la instrucción de transferencia
-            instructions.push(createTransferInstruction(
-                userTokenAccount,
-                PAYMENT_ACCOUNT,
-                userKeyPair.publicKey,
-                amount * 10 ** 5,
-                [],
-                TOKEN_PROGRAM_ID
-            ));
+		const createCollectionObject = await createCollection(umi, {
+			collection: collectionSigner,
+			name: collectionMetadata.name,
+			uri: collectionMetadata.uri,
+		});
 
-            // Añadir compute units
-            const computeUnitsPriceInstruction = ComputeBudgetProgram.setComputeUnitPrice({microLamports: 520145});
+		const transaction = await umi.transactions.create(
+			{
+				version: 0,
+				blockhash: (await umi.rpc.getLatestBlockhash()).blockhash,
+				instructions: createCollectionObject.getInstructions(),
+				payer: fromPubKey,
+			}
+		)
 
-            // Crea y envía la transacción de transferencia
-            const transferTransaction = new Transaction()
-                .add(computeUnitsPriceInstruction)
-                .add(...instructions);
+		// partially sign the transaction using the collection signer
+		const serializedTransaction = umi.transactions.serialize(transaction)
 
-            const transferSignature = await sendAndConfirmTransaction(SOLANA_CONNECTION, transferTransaction, [userKeyPair]);
-            console.log(`✅ - Transferencia realizada: ${transferSignature}`);
+		const encoded = Buffer.from(serializedTransaction).toString('base64')
 
-            return transferSignature;
-        } catch (error) {
-            console.error(`Error en transferencia de BONK tokens:`, error);
-            throw error;
-        }
-    }
+		console.log("TESTING ENCODING.....: ", encoded)
 
-    static async verifyNftCollection(collectionAddress, nftAddress, userKeyPair) {
-        const mintAddress = new PublicKey(nftAddress);
-        const collectionMintAddress = new PublicKey(collectionAddress);
-        const metaplex = Metaplex.make(SOLANA_CONNECTION);
-        metaplex.use(keypairIdentity(userKeyPair));
-        const res = await metaplex.nfts().verifyCollection({mintAddress, collectionMintAddress});
-        console.log("Collection verified successfully");
-        console.log("Collection Address:", collectionMintAddress.toBase58());
-        console.log("NFT Address:", mintAddress.toBase58());
-        return res
-    }
+		return encoded
+	}
 
+	static async createCollectionTransaction(fromPubKey, metadata = {}) {
+		// Initialize Umi instance and use necessary plugins
+		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
+
+		// Generate a signer for the collection
+		const collectionSigner = generateSigner(umi);
+		umi.use(keypairIdentity(collectionSigner))
+		// Define collection metadata
+		const collectionMetadata = {
+			name: metadata.name || 'My Collection',
+			uri: metadata.uri || 'https://mycollection.com',
+			...metadata,
+		};
+
+		// Create the collection object
+		const createCollectionObject = await createCollectionV1(umi, {
+			collection: collectionSigner,
+			name: collectionMetadata.name,
+			uri: collectionMetadata.uri,
+		});
+
+		// Build the transaction using setLatestBlockhash
+		const builder = await transactionBuilder().add(createCollectionObject).setLatestBlockhash(umi);
+		builder.setFeePayer(fromPubKey);
+		console.log("------------------------CHECKPOINT----------------------")
+
+		// Serialize and encode the transaction
+		const transaction = builder.build(umi)
+		const serializedTransaction = umi.transactions.serialize(transaction);
+		const encodedTransaction = Buffer.from(serializedTransaction).toString('base64');
+
+		console.log("Encoded Transaction: ", encodedTransaction);
+
+		return encodedTransaction;
+	}
+
+	static async mintNftFromCollection(fromPubKey, collectionPubKey, metadata = {}) {
+
+		const payer = new PublicKey(fromPubKey);
+		const signer = createNoopSigner(payer);
+		umi.use(signerIdentity(signer));
+		const createNft = await create(umi, {
+			asset: fromPubKey,
+			collection: collectionPubKey,
+			name: metadata.name || 'My NFT',
+			uri: metadata.uri || 'https://mynft.com',
+		})
+
+		const transaction = await umi.transactions.create({
+			version: 0,
+			blockhash: (await umi.rpc.getLatestBlockhash()).blockhash,
+			instructions: createNft.getInstructions(),
+			payer: fromPubKey,
+		})
+
+		const serialized = umi.transactions.serialize(transaction)
+
+		const encoded = Buffer.from(serialized).toString('base64')
+
+		console.log("ENCODED: ", encoded)
+		return encoded
+
+	}
 }
 
 export default MetaplexService;
