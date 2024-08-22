@@ -5,6 +5,7 @@ import BonkService from '../services/bonk.service.js';
 import UserService from '../entities/users/user.service.js';
 import BlinkService from '../services/blink.service.js';
 import { PrimateService } from '@thewebchimp/primate';
+import MetaplexService from "../services/metaplex.service.js";
 
 class SolanaActionController {
 	static async handleAction(req, res) {
@@ -603,7 +604,7 @@ class SolanaActionController {
 			message: 'Unauthorized',
 		  });
 		}
-	
+
 		const user = await UserService.findById(signedUser.id);
 		if(!user) {
 		  return res.respond({
@@ -611,10 +612,10 @@ class SolanaActionController {
 			message: 'User not found',
 		  });
 		}
-	
+
 		try {
 		  const blink = await BlinkService.createBlink(user, req.body);
-	
+
 		  return res.respond({
 			status: 200,
 			data: blink,
@@ -628,7 +629,7 @@ class SolanaActionController {
 		  });
 		}
 	}
-	
+
 }
 
 export default SolanaActionController;
