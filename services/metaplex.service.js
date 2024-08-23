@@ -1,14 +1,14 @@
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
-import { createCollection, fetchCollection, create, createCollectionV1 } from '@metaplex-foundation/mpl-core';
-import { PublicKey } from '@solana/web3.js';
-import { createNft } from '@metaplex-foundation/mpl-token-metadata';
+import {
+	create,
+	createCollectionV2
+} from '@metaplex-foundation/mpl-core';
 import { mplCandyMachine } from '@metaplex-foundation/mpl-candy-machine';
 
 import {
 	createNoopSigner,
 	generateSigner,
 	signerIdentity,
-	keypairIdentity,
 	transactionBuilder,
 	percentAmount,
 } from '@metaplex-foundation/umi';
@@ -19,12 +19,12 @@ class MetaplexService {
 	static async createCollectionTransaction(fromPubKey, metadata = {}) {
 
 		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
-
-		// Create the Collection NFT.
+		// Create the Collection NFT
+		const newKeyPair = generateKeypair()
 		const collectionUpdateAuthority = generateSigner(umi);
 		const collectionMint = generateSigner(umi);
 
-		const collectionNFT = await createNft(umi, {
+		const collectionNFT = await createCollectionV2(umi, {
 			mint: collectionMint,
 			//authority: collectionUpdateAuthority,
 			name: 'My Collection NFT',

@@ -4,7 +4,7 @@ import {ACTIONS_CORS_HEADERS} from '@solana/actions';
 import BonkService from '../services/bonk.service.js';
 import UserService from '../entities/users/user.service.js';
 import BlinkService from '../services/blink.service.js';
-import { PrimateService } from '@thewebchimp/primate';
+import {PrimateService} from '@thewebchimp/primate';
 import MetaplexService from "../services/metaplex.service.js";
 
 class SolanaActionController {
@@ -85,18 +85,17 @@ class SolanaActionController {
 	}
 
 	static async handleGetAction(path, req, res) {
-		console.log("HEEEEEEEEEEEEEEEEEEEEEEEEEEEY")
 		const actionMapping = SolanaActionController.getActionMapping();
 
 		// check if path starts with cb-
-		if(path.startsWith('/cb-')) {
+		if (path.startsWith('/cb-')) {
 			// remove cb- from path
 			path = path.replace('/cb-', '');
 
 			// get blink by uid
-			const blink = await PrimateService.findBy({ uid: path }, 'blink');
+			const blink = await PrimateService.findBy({uid: path}, 'blink');
 
-			if(!blink) {
+			if (!blink) {
 				return res.respond({
 					status: 404,
 					message: 'Blink not found',
@@ -392,7 +391,15 @@ class SolanaActionController {
 		const inputMint = req.query.inputMint;
 		const outputMint = req.query.outputMint;
 		const amount = req.query.amount;
-		const slippageBps = req.query.slippageBps || 0.5;
+		let slippageBps = req.query.amount;
+
+		if (slippageBps === null || isNaN(slippageBps)) {
+			slippageBps = 0.05;
+		}
+
+		if (slippageBps > 0.1) {
+			slippageBps = 0.05;
+		}
 
 		if (!account || !inputMint || !outputMint || !amount) {
 			return res.respond({
@@ -598,35 +605,35 @@ class SolanaActionController {
 
 		// Get user from req
 		const signedUser = req.user.payload;
-		if(!signedUser) {
-		  return res.respond({
-			status: 401,
-			message: 'Unauthorized',
-		  });
+		if (!signedUser) {
+			return res.respond({
+				status: 401,
+				message: 'Unauthorized',
+			});
 		}
 
 		const user = await UserService.findById(signedUser.id);
-		if(!user) {
-		  return res.respond({
-			status: 404,
-			message: 'User not found',
-		  });
+		if (!user) {
+			return res.respond({
+				status: 404,
+				message: 'User not found',
+			});
 		}
 
 		try {
-		  const blink = await BlinkService.createBlink(user, req.body);
+			const blink = await BlinkService.createBlink(user, req.body);
 
-		  return res.respond({
-			status: 200,
-			data: blink,
-			message: 'Blink created successfully',
-		  });
-		} catch(error) {
-		  console.error(error);
-		  return res.respond({
-			status: 500,
-			message: 'Error creating blink: ' + error.message,
-		  });
+			return res.respond({
+				status: 200,
+				data: blink,
+				message: 'Blink created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error creating blink: ' + error.message,
+			});
 		}
 	}
 
