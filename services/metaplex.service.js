@@ -1,84 +1,184 @@
-import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+import {createUmi} from '@metaplex-foundation/umi-bundle-defaults';
 import {
-	create,
-	createCollectionV2
-} from '@metaplex-foundation/mpl-core';
-import { mplCandyMachine } from '@metaplex-foundation/mpl-candy-machine';
+	createCandyMachineV2,
+	mplCandyMachine,
+	addConfigLines, mintV2, fetchCandyMachine, findCandyGuardPda, createCandyGuard,
+	wrap,
+} from '@metaplex-foundation/mpl-candy-machine';
 
 import {
 	createNoopSigner,
 	generateSigner,
-	signerIdentity,
-	transactionBuilder,
 	percentAmount,
+	publicKey,
+	signerIdentity,
+	some
 } from '@metaplex-foundation/umi';
+import {
+	createNft,
+	TokenStandard,
+} from '@metaplex-foundation/mpl-token-metadata'
+import {sol} from "@metaplex-foundation/js";
 
-const umi = createUmi(process.env.SOLANA_RPC_URL).use(mplCandyMachine());
+const umi = createUmi(process.env.SOLANA_RPC_URL)
 
 class MetaplexService {
-	static async createCollectionTransaction(fromPubKey, metadata = {}) {
-
+	static async createCollectionTransaction(fromPubKey, metadataString = {}) {
 		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
-		// Create the Collection NFT
-		const newKeyPair = generateKeypair()
-		const collectionUpdateAuthority = generateSigner(umi);
+		umi.use(mplCandyMachine());
 		const collectionMint = generateSigner(umi);
-
-		const collectionNFT = await createCollectionV2(umi, {
+		const metadata = JSON.parse(metadataString);
+		console.log("metadata: ", metadata)
+		const inputConfig = {
 			mint: collectionMint,
-			//authority: collectionUpdateAuthority,
-			name: 'My Collection NFT',
-			uri: 'https://example.com/path/to/some/json/metadata.json',
+			name: metadata.name || 'My Collection NFT',
+			symbol: metadata.symbol || '',
+			uri: metadata.uri || 'https://example.com/path/to/some/json/metadata.json',
+			description: metadata.description || '',
+			image: metadata.image || '',
+			animation_url: metadata.animation_url || '',
+			external_url: metadata.external_url || '',
+			attributes: metadata.attributes || [],
 			sellerFeeBasisPoints: percentAmount(9.99, 2), // 9.99%
 			isCollection: true,
-		});
-
-		// Pass the collection address and its authority in the settings.
-		const candyMachineSettings = {
-			collectionMint: collectionMint.publicKey,
-			collectionUpdateAuthority,
 		};
-
-		// Build the transaction using setLatestBlockhash
-		const builder = await transactionBuilder().add(collectionNFT).setLatestBlockhash(umi);
-		builder.setFeePayer(fromPubKey);
-
-		// Serialize and encode the transaction
-		const transaction = builder.build(umi);
-		const serializedTransaction = umi.transactions.serialize(transaction);
-		const encodedTransaction = Buffer.from(serializedTransaction).toString('base64');
-
-		console.log('Encoded Transaction: ', encodedTransaction);
-
-		return encodedTransaction;
+		console.log("input config: ", inputConfig)
+		const collectionNFT = await createNft(umi, inputConfig);
+		const {blockhash} = await umi.rpc.getLatestBlockhash();
+		const transaction = await umi.transactions.create({
+			version: 2,
+			blockhash,
+			instructions: collectionNFT.getInstructions(),
+			payer: fromPubKey, // Establecer el pagador de la tarifa de la transacción
+		});
+		// sign the transaction using collectionMint
+		const signedTransaction = await collectionMint.signTransaction(transaction);
+		const serializedTransaction = umi.transactions.serialize(signedTransaction);
+		return Buffer.from(serializedTransaction).toString('base64');
 	}
 
-	static async mintNftFromCollection(fromPubKey, collectionPubKey, metadata = {}) {
-
-		const payer = new PublicKey(fromPubKey);
-		const signer = createNoopSigner(payer);
-		umi.use(signerIdentity(signer));
-		const createNft = await create(umi, {
-			asset: fromPubKey,
-			collection: collectionPubKey,
-			name: metadata.name || 'My NFT',
-			uri: metadata.uri || 'https://mynft.com',
+	static async createCandyMachine(fromPubKey, collectionMintPubKey, metadata = {}) {
+		umi.use(mplCandyMachine());
+		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
+		const candyMachine = generateSigner(umi)
+		const {blockhash} = await umi.rpc.getLatestBlockhash();
+		const candyMachineCreation = await createCandyMachineV2(umi, {
+			candyMachine,
+			collectionMint: collectionMintPubKey,
+			collectionUpdateAuthority: umi.identity,
+			tokenStandard: TokenStandard.NonFungible,
+			mutable: true,
+			sellerFeeBasisPoints: percentAmount(9.99, 2), // 9.99%
+			itemsAvailable: 2,
+			symbol: 'CANDY',
+			maxEditionSupply: 0,
+			creators: [
+				{
+					address: umi.identity.publicKey,
+					verified: true,
+					percentageShare: 100,
+				},
+			],
+			configLineSettings: some({
+				prefixName: 'Candy',
+				nameLength: 2,
+				prefixUri: 'https://example.com/',
+				uriLength: 100,
+				isSequential: false,
+			}),
 		});
-
 		const transaction = await umi.transactions.create({
-			version: 0,
-			blockhash: (await umi.rpc.getLatestBlockhash()).blockhash,
-			instructions: createNft.getInstructions(),
+			blockhash,
+			instructions: candyMachineCreation.getInstructions(),
+			payer: fromPubKey,
+		});
+		const signedTransaction = await candyMachine.signTransaction(transaction);
+		const serializedTransaction = umi.transactions.serialize(signedTransaction);
+		return Buffer.from(serializedTransaction).toString('base64');
+
+	}
+
+	static async createGuardAndWrap(fromPubKey, candyMachinePubKey) {
+		umi.use(mplCandyMachine());
+		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
+		const base = generateSigner(umi)
+		const guardResult = await createCandyGuard(umi, {
+			base,
+			guards: {
+				solPayment: {lamports: sol(0.001), destination: fromPubKey},
+			},
+		})
+		console.log("Guard result", guardResult)
+		const candyGuard = findCandyGuardPda(umi, {base: base.publicKey})
+		const wrapObject = await wrap(umi, {
+			candyMachine: candyMachinePubKey,
+			candyGuard,
+		})
+		console.log("Wrap object", wrapObject)
+		const instructions = [
+			...guardResult.getInstructions(),
+			...wrapObject.getInstructions(),
+		]
+		const {blockhash} = await umi.rpc.getLatestBlockhash();
+		const transaction = await umi.transactions.create({
+			blockhash,
+			instructions: instructions,
+			payer: fromPubKey,
+		});
+		const signedTransaction = await base.signTransaction(transaction);
+		const serializedTransaction = umi.transactions.serialize(signedTransaction);
+		return Buffer.from(serializedTransaction).toString('base64');
+	}
+
+	static async addConfigLines(fromPubKey, candyMachinePubKey, configLines = []) {
+		umi.use(mplCandyMachine());
+		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
+
+		const candyMachine = publicKey(candyMachinePubKey);
+		const configLinesResult = await addConfigLines(umi, {
+			candyMachine: candyMachine,
+			index: 0,
+			configLines: [
+				{name: '#1', uri: 'https://example.com/nft1.json'},
+				{name: '#2', uri: 'https://example.com/nft2.json'},
+			],
+		})
+
+		console.log("Config lines result", configLinesResult)
+		const {blockhash} = await umi.rpc.getLatestBlockhash();
+		const transaction = await umi.transactions.create({
+			blockhash,
+			instructions: configLinesResult.getInstructions(),
 			payer: fromPubKey,
 		});
 
-		const serialized = umi.transactions.serialize(transaction);
+		const serializedTransaction = umi.transactions.serialize(transaction);
+		return Buffer.from(serializedTransaction).toString('base64');
+	}
 
-		const encoded = Buffer.from(serialized).toString('base64');
-
-		console.log('ENCODED: ', encoded);
-		return encoded;
-
+	static async mintNFT(fromPubKey, candyMachine, collectionMintPubKey) {
+		umi.use(mplCandyMachine());
+		umi.use(signerIdentity(createNoopSigner(fromPubKey)));
+		const candyMachineInfo = await fetchCandyMachine(umi, candyMachine);
+		console.log("Candy machine information:")
+		console.log(candyMachineInfo)
+		const asset = generateSigner(umi);
+		const mintResult = await mintV2(umi, {
+			candyMachine: candyMachineInfo.publicKey,
+			nftMint: asset,
+			collectionMint: candyMachineInfo.collectionMint,
+			collectionUpdateAuthority: umi.identity,
+			candyGuard: candyMachine.mintAuthority,
+		});
+		const {blockhash} = await umi.rpc.getLatestBlockhash();
+		const transaction = await umi.transactions.create({
+			blockhash,
+			instructions: mintResult.getInstructions(),
+			payer: fromPubKey,
+		});
+		const signedTransaction = await asset.signTransaction(transaction);
+		const serializedTransaction = umi.transactions.serialize(signedTransaction);
+		return Buffer.from(serializedTransaction).toString('base64');
 	}
 }
 

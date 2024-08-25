@@ -45,6 +45,10 @@ class SolanaActionController {
 		const actionsJson = {
 			'rules': [
 				{
+					'pathPattern': '/blinks/create-candy-machine',
+					'apiPath': '/blinks/create-candy-machine',
+				},
+				{
 					'pathPattern': '/blinks/transfer-sol',
 					'apiPath': '/blinks/transfer-sol',
 				},
@@ -154,6 +158,9 @@ class SolanaActionController {
 			'/stake-bonk': SolanaActionController.handlePostBonkStake,
 			'/mint-nft': SolanaActionController.handlePostMintNFT,
 			'/create-nft-collection': SolanaActionController.handlePostCreateNFTCollection,
+			'/create-candy-machine': SolanaActionController.handlePostCreateCandyMachine,
+			'/insert-items': SolanaActionController.handlePostInsertItems,
+			'/create-guard': SolanaActionController.handlePostCreateGuard,
 		};
 
 		const actionHandler = actionMapping[path];
@@ -169,15 +176,15 @@ class SolanaActionController {
 
 	static getActionMapping() {
 		return {
-			'/mint-nft': {
-				title: 'Mint NFT',
+			'/create-candy-machine': {
+				title: 'Create Candy Machine',
 				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
-				description: 'Mint a new NFT',
+				description: 'Create candy machine',
 				links: {
 					actions: [
 						{
-							label: 'Mint NFT',
-							href: '/blinks/mint-nft?collection={collection}&metadata={metadata}',
+							label: 'Create Candy Machine',
+							href: '/blinks/create-candy-machine?collection={collection}&metadata={metadata}',
 							parameters: [
 								{
 									label: 'Collection Pubkey',
@@ -187,6 +194,31 @@ class SolanaActionController {
 								{
 									label: 'metadata',
 									name: 'metadata',
+									required: true,
+								},
+							]
+						}
+					]
+				}
+			},
+			'/mint-nft': {
+				title: 'Mint NFT',
+				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+				description: 'Mint a new NFT',
+				links: {
+					actions: [
+						{
+							label: 'Mint NFT',
+							href: '/blinks/mint-nft?collection={collection}&candyMachine={candyMachine}',
+							parameters: [
+								{
+									label: 'Candy Machine Pubkey',
+									name: 'candyMachine',
+									required: true,
+								},
+								{
+									label: 'Collection',
+									name: 'collection',
 									required: true,
 								},
 							]
@@ -320,7 +352,6 @@ class SolanaActionController {
 					],
 				},
 			},
-
 			'/stake-bonk': {
 				title: 'Stake BONK',
 				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
@@ -346,10 +377,85 @@ class SolanaActionController {
 					],
 				},
 			},
-
+			'/insert-items': {
+				title: 'Add Config Lines',
+				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+				description: 'Add config lines to a candy machine.',
+				links: {
+					actions: [
+						{
+							label: 'Add Config Lines',
+							href: '/blinks/insert-items?configLines={configLines}&candyMachine={candyMachine}',
+							parameters: [
+								{
+									label: 'Candy Machine Pubkey',
+									name: 'candyMachine',
+									required: true,
+								},
+								{
+									label: 'Config Lines',
+									name: 'configLines',
+									required: true,
+								},
+							],
+						},
+					],
+				},
+			},
+			'/create-guard': {
+				title: 'Create Guard',
+				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+				description: 'Create a guard.',
+				links: {
+					actions: [
+						{
+							label: 'Create Guard',
+							href: '/blinks/create-guard?candyMachine={candyMachine}',
+							parameters: [
+								{
+									label: 'Candy Machine Pubkey',
+									name: 'candyMachine',
+									required: true,
+								},
+							],
+						},
+					],
+				},
+			}
 		};
 	}
+	static async handlePostInsertItems(req, res) {
+		const {account} = req.body;
+		const candyMachine = req.query.candyMachine;
+		const configLines = req.query.configLines;
 
+		if (!account || !candyMachine || !configLines) {
+			return res.respond({
+				status: 400,
+				message: 'Bad Request: Missing required fields',
+			});
+		}
+
+		try {
+			const encodedTransaction = await MetaplexService.addConfigLines(
+				account,
+				candyMachine,
+				configLines,
+			);
+			return res.respond({
+				status: 200,
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
+				message: 'Transaction created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error processing transaction: ' + error.message,
+			});
+		}
+	}
 	static async handlePostBonkStake(req, res) {
 		const {account} = req.body;
 		const amount = req.query.amount; // Assuming amount in BONK
@@ -534,25 +640,27 @@ class SolanaActionController {
 		}
 	}
 
-	/// using MetaplexService create the handlePostMintNFT function
 
 	static async handlePostMintNFT(req, res) {
 		const {account} = req.body;
+		const candyMachine = req.query.candyMachine;
 		const collection = req.query.collection;
-		const metadata = req.query.metadata;
 
-		if (!account || !collection || !metadata) {
+		if (!account || !candyMachine || !collection) {
 			return res.respond({
 				status: 400,
-				message: 'Bad Request: Missing required fields',
+				message: `Bad Request: parameter missing: ${!account ? 'account' : !candyMachine ? 'candyMachine' : 'collection'}`,
 			});
 		}
 
 		try {
-			const encodedTransaction = await MetaplexService.mintNftFromCollection(
+
+			console.log("Wtf bro")
+
+			const encodedTransaction = await MetaplexService.mintNFT(
 				account,
+				candyMachine,
 				collection,
-				metadata,
 			);
 			return res.respond({
 				status: 200,
@@ -560,13 +668,14 @@ class SolanaActionController {
 				props: {transaction: encodedTransaction},
 				message: 'Transaction created successfully',
 			});
-		} catch (error) {
+		}catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 500,
 				message: 'Error processing transaction: ' + error.message,
 			});
 		}
+
 	}
 
 	static async handlePostCreateNFTCollection(req, res) {
@@ -585,6 +694,69 @@ class SolanaActionController {
 			const encodedTransaction = await MetaplexService.createCollectionTransaction(
 				account,
 				metadata,
+			);
+			return res.respond({
+				status: 200,
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
+				message: 'Transaction created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error processing transaction: ' + error.message,
+			});
+		}
+	}
+
+	static async handlePostCreateCandyMachine(req, res) {
+		const {account} = req.body;
+		const metadata = req.query.metadata;
+		const collection = req.query.collection;
+
+		if (!account || !metadata || !collection) {
+			return res.respond({
+				status: 400,
+				message: `Bad Request: parameter missing: ${!account ? 'account' : !metadata ? 'metadata' : 'collection'}`,
+			});
+		}
+
+		try {
+			const encodedTransaction = await MetaplexService.createCandyMachine(
+				account,
+				collection,
+			);
+			return res.respond({
+				status: 200,
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
+				message: 'Transaction created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error processing transaction: ' + error.message,
+			});
+		}
+	}
+
+	static async handlePostCreateGuard(req, res) {
+		const {account} = req.body;
+		const candyMachine = req.query.candyMachine;
+
+		if (!account || !candyMachine) {
+			return res.respond({
+				status: 400,
+				message: `Bad Request: parameter missing: ${!account ? 'account' : 'candyMachine'}`,
+			});
+		}
+
+		try {
+			const encodedTransaction = await MetaplexService.createGuardAndWrap(
+				account,
+				candyMachine,
 			);
 			return res.respond({
 				status: 200,
