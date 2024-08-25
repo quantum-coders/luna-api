@@ -7,6 +7,7 @@ import {jwt, PrimateController} from '@thewebchimp/primate';
 import UserService from './user.service.js';
 import AttachmentService from '../attachments/attachment.service.js';
 import WalletService from "../../services/wallet.service.js";
+import userService from "./user.service.js";
 
 class UserController extends PrimateController {
 
@@ -89,6 +90,19 @@ class UserController extends PrimateController {
 	};
 
 
+	static async userBlinks(req, res, next) {
+		try {
+			const user = req.user.payload;
+
+			const blinks = await userService.getBlinks(user.id);
+
+			res.respond({
+				data: blinks,
+			});
+		} catch (e) {
+			next(createError(404, e.message));
+		}
+	}
 	static async register(req, res, next) {
 		try {
 			const data = await UserService.create(req.body);
@@ -266,7 +280,7 @@ class UserController extends PrimateController {
 
 			// delete password
 			delete user.password;
-			
+
 			res.respond({
 				data: user,
 			});

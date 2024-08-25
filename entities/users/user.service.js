@@ -10,6 +10,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class UserService {
+
+	static async getBlinks(idUser) {
+		return prisma.blink.findMany({
+			where: {
+				idUser,
+			},
+		});
+	}
 	static async authenticate(data) {
 		const {wallet} = data;
 

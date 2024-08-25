@@ -30,6 +30,8 @@ router.get('/:id/avatar', UserController.avatar);
 // update profile
 router.put('/:id/profile', auth, UserController.updateProfile);
 
+router.get('/me/blinks', auth, UserController.userBlinks);
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 setupRoute('user', router, options);
