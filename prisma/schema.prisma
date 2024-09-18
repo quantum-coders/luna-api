@@ -1,154 +1,169 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "mysql"
-    url      = env("DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model Attachment {
-    id         Int      @id @default(autoincrement())
-    slug       String   @unique
-    name       String   @default("")
-    attachment String   @default("")
-    mime       String   @default("")
-    size       Int      @default(0)
-    source     String   @default("")
-    acl        String   @default("")
-    metas      Json?    @default("{}")
-    created    DateTime @default(now())
-    modified   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  name       String   @default("")
+  attachment String   @default("")
+  mime       String   @default("")
+  size       Int      @default(0)
+  source     String   @default("")
+  acl        String   @default("")
+  metas      Json?    @default("{}")
+  created    DateTime @default(now())
+  modified   DateTime @default(now())
 
-    @@map("attachment")
+  @@map("attachment")
 }
 
 model User {
-    id        Int      @id @default(autoincrement())
-    uid       String   @unique @default(cuid())
-    username  String   @unique
-    email     String?  @unique
-    firstname String
-    lastname  String
-    nicename  String
-    password  String?
-    type      String   @default("User")
-    status    String   @default("Active")
-    language  String   @default("en")
-    metas     Json?    @default("{}")
-    created   DateTime @default(now())
-    modified  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique @default(cuid())
+  username  String   @unique
+  email     String?  @unique
+  firstname String
+  lastname  String
+  nicename  String
+  password  String?
+  type      String   @default("User")
+  status    String   @default("Active")
+  language  String   @default("en")
+  metas     Json?    @default("{}")
+  created   DateTime @default(now())
+  modified  DateTime @default(now())
 
-    messages       Message[]
-    chats          Chat[]
-    rims           Rim[]
-    wallets        Wallet[]
-    linkedAccounts LinkedAccount[]
-    blinks         Blink[]
+  messages       Message[]
+  chats          Chat[]
+  rims           Rim[]
+  wallets        Wallet[]
+  linkedAccounts LinkedAccount[]
+  blinks         Blink[]
+  sessions       Session[]
 
-    @@map("user")
+  @@map("user")
 }
 
 model Chat {
-    id         Int       @id @default(autoincrement())
-    idUser     Int       @map("id_user")
-    idExternal String?   @unique @map("external_id")
-    type       String    @default("telegram")
-    title      String? // Opcional, podría ser útil para grupos o chats temáticos
-    created    DateTime  @default(now()) @map("created")
-    modified   DateTime  @default(now()) @map("modified")
-    messages   Message[]
+  id         Int       @id @default(autoincrement())
+  idUser     Int?      @map("id_user")
+  idExternal String?   @unique @map("external_id")
+  type       String    @default("telegram")
+  title      String? // Opcional, podría ser útil para grupos o chats temáticos
+  created    DateTime  @default(now()) @map("created")
+  modified   DateTime  @default(now()) @map("modified")
+  messages   Message[]
 
-    user User @relation(fields: [idUser], references: [id])
+  user User? @relation(fields: [idUser], references: [id])
 
-    @@map("chat")
+  @@map("chat")
 }
 
 model Message {
-    id            Int      @id @default(autoincrement())
-    content       String   @db.LongText
-    messageType   String   @map("message_type")
-    idUser        Int      @map("id_user")
-    idChat        Int      @map("id_chat")
-    responseTo    Int?     @map("response_to")
-    attachmentUrl String?  @map("attachment_url")
-    created       DateTime @default(now()) @map("created")
-    modified      DateTime @default(now()) @map("modified")
+  id            Int      @id @default(autoincrement())
+  content       String   @db.LongText
+  messageType   String   @map("message_type")
+  idUser        Int?     @map("id_user")
+  idChat        Int      @map("id_chat")
+  responseTo    Int?     @map("response_to")
+  attachmentUrl String?  @map("attachment_url")
+  created       DateTime @default(now()) @map("created")
+  modified      DateTime @default(now()) @map("modified")
 
-    parentMessage Message?  @relation("responses", fields: [responseTo], references: [id])
-    responses     Message[] @relation("responses")
-    user          User      @relation(fields: [idUser], references: [id])
-    chat          Chat      @relation(fields: [idChat], references: [id])
+  parentMessage Message?  @relation("responses", fields: [responseTo], references: [id])
+  responses     Message[] @relation("responses")
+  user          User?     @relation(fields: [idUser], references: [id])
+  chat          Chat      @relation(fields: [idChat], references: [id])
 
-    rims Rim[]
+  rims Rim[]
 
-    @@map("message")
+  @@map("message")
 }
 
 model Rim {
-    id               Int       @id @default(autoincrement())
-    idMessage        Int       @map("id_message")
-    jsonData         Json      @map("json_data")
-    version          String?
-    idUser           Int?      @map("id_user")
-    expired          DateTime?
-    interactionCount Int       @default(0)
-    type             String?
-    status           String    @default("active")
-    created          DateTime  @default(now())
-    modified         DateTime  @default(now())
+  id               Int       @id @default(autoincrement())
+  idMessage        Int       @map("id_message")
+  jsonData         Json      @map("json_data")
+  version          String?
+  idUser           Int?      @map("id_user")
+  expired          DateTime?
+  interactionCount Int       @default(0)
+  type             String?
+  status           String    @default("active")
+  created          DateTime  @default(now())
+  modified         DateTime  @default(now())
 
-    message Message @relation(fields: [idMessage], references: [id])
-    user    User?   @relation(fields: [idUser], references: [id])
+  message Message @relation(fields: [idMessage], references: [id])
+  user    User?   @relation(fields: [idUser], references: [id])
 
-    @@map("rim")
+  @@map("rim")
 }
 
 model Wallet {
-    id        Int     @id @default(autoincrement())
-    idUser    Int     @map("id_user")
-    network   String  @default("solana") @map("network") @db.VarChar(255)
-    address   String  @db.VarChar(255)
-    secretKey String? @map("secret_key") @db.Text
-    isMain    Boolean @default(false) @map("is_main")
-    metas     Json?   @default("{}")
+  id        Int     @id @default(autoincrement())
+  idUser    Int     @map("id_user")
+  network   String  @default("solana") @map("network") @db.VarChar(255)
+  address   String  @db.VarChar(255)
+  secretKey String? @map("secret_key") @db.Text
+  isMain    Boolean @default(false) @map("is_main")
+  metas     Json?   @default("{}")
 
-    created  DateTime @default(now())
-    modified DateTime @default(now())
+  created  DateTime @default(now())
+  modified DateTime @default(now())
 
-    user User @relation(fields: [idUser], references: [id])
+  user User @relation(fields: [idUser], references: [id])
 
-    @@unique([network, address])
-    @@map("wallet")
+  @@unique([network, address])
+  @@map("wallet")
 }
 
 model LinkedAccount {
-    id         Int    @id @default(autoincrement())
-    idUser     Int?   @map("id_user")
-    provider   String
-    idProvider String @map("id_provider")
-    token      String @default("")
-    status     String @default("pending")
-    metas      Json?  @default("{}")
+  id         Int    @id @default(autoincrement())
+  idUser     Int?   @map("id_user")
+  provider   String
+  idProvider String @map("id_provider")
+  token      String @default("")
+  status     String @default("pending")
+  metas      Json?  @default("{}")
 
-    created  DateTime @default(now())
-    modified DateTime @default(now())
+  created  DateTime @default(now())
+  modified DateTime @default(now())
 
-    user User? @relation(fields: [idUser], references: [id])
+  user User? @relation(fields: [idUser], references: [id])
 
-    @@unique([provider, idProvider])
-    @@map("linked_account")
+  @@unique([provider, idProvider])
+  @@map("linked_account")
 }
 
 model Blink {
-    id       Int      @id @default(autoincrement())
-    uid      String   @unique @default(cuid())
-    idUser   Int      @map("id_user")
-    data     Json     @default("{}") @map("data")
-    created  DateTime @default(now())
-    modified DateTime @default(now())
+  id       Int      @id @default(autoincrement())
+  uid      String   @unique @default(cuid())
+  idUser   Int      @map("id_user")
+  data     Json     @default("{}") @map("data")
+  created  DateTime @default(now())
+  modified DateTime @default(now())
 
-    user User @relation(fields: [idUser], references: [id])
+  user User @relation(fields: [idUser], references: [id])
 
-    @@map("blink")
+  @@map("blink")
+}
+
+model Session {
+  id       Int      @id @default(autoincrement())
+  key      String   @unique
+  value    Json     @default("{}")
+  idUser   Int?     @map("id_user")
+  type     String   @default("telegram")
+  created  DateTime @default(now())
+  modified DateTime @default(now())
+
+  user User? @relation(fields: [idUser], references: [id])
+
+  @@map("session")
 }
