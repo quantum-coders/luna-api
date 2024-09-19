@@ -1,12 +1,12 @@
 import 'dotenv/config';
 
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 import fs from 'fs';
 import axios from 'axios';
 
 import OpenAI from 'openai';
-import { promptTokensEstimate } from 'openai-chat-tokens';
-import { openAIModels, perplexityModels, groqModels } from '../assets/data/ai-models.js';
+import {promptTokensEstimate} from 'openai-chat-tokens';
+import {openAIModels, perplexityModels, groqModels} from '../assets/data/ai-models.js';
 
 import AttachmentService from '../entities/attachments/attachment.service.js';
 
@@ -23,23 +23,82 @@ class AIService {
 	 * @throws {Error} - Throws an error if there is an issue with the request or the response.
 	 */
 	static async sendMessage(data, provider) {
+		let {
+			model,
+			system = '',
+			prompt,
+			stream = true,
+			history = [],
+			mode,
+			temperature = 0.5,
+			maxTokens = 1024,
+			topP = 1,
+			frequencyPenalty = 0.0001,
+			presencePenalty = 0,
+			stop = '',
+		} = data;
 
-		const url = AIService.solveProviderUrl(provider);
-		if(!!data.stream) {
-			return await axios.post(url, data, {
+		// Sanitize input
+		if (!model || !prompt) {
+			const missingFields = [];
+			if (!model) missingFields.push('model');
+			if (!prompt) missingFields.push('prompt');
+			throw new Error('Missing required fields: ' + missingFields.join(', '));
+		}
+
+		try {
+			// Get model information (maxTokens and provider)
+			const modelInfo = AIService.solveModelInfo(model);
+			const provider = modelInfo.provider;
+			maxTokens = modelInfo.maxTokens;
+
+			// Adjust sizes to avoid token limit
+			const adjustHistory = AIService.adjustHistory(system, history, prompt);
+			system = adjustHistory.system;
+			history = adjustHistory.history;
+			prompt = adjustHistory.prompt;
+
+			const messages = [
+				{'role': 'system', 'content': system || 'You are a helpful assistant.'},
+				...history,
+				{'role': 'user', 'content': prompt || 'Hello'},
+			];
+
+			const data = {
+				model,
+				messages,
+				temperature,
+				max_tokens: maxTokens,
+				top_p: topP,
+				frequency_penalty: frequencyPenalty,
+				presence_penalty: presencePenalty,
+				stream,
+			};
+
+			if (provider === 'openai' && mode === 'json') data.response_format = {type: 'json_object'};
+			if (provider === 'openai') if (stop) data.stop = stop;
+
+			const payload = {
 				headers: {
 					'Content-Type': 'application/json',
-					Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-				},
-				responseType: 'stream',
-			});
-		}else{
-			return await axios.post(url, data, {
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-				},
-			});
+					Authorization: `Bearer ${modelInfo.authToken}`,
+				}
+			}
+			const url = AIService.solveProviderUrl(provider);
+			if (!!data.stream) {
+				payload.responseType = 'stream'
+			}
+			return await axios.post(url, data, payload);
+
+		} catch (error) {
+			console.error('Error:', error);
+			if (error.response) {
+				throw new Error('Error to process the request: ' + error.message);
+			} else if (error.request) {
+				throw new Error('Error to process the request: ' + error.message);
+			} else {
+				throw new Error('Error to process the request: ' + error.message);
+			}
 		}
 	}
 
@@ -53,47 +112,60 @@ class AIService {
 	static solveModelInfo(model) {
 		let maxTokens = 4096;
 
-		if(!openAIModels.includes(model) && !perplexityModels.includes(model) && !groqModels.includes(model)) {
+		if (!openAIModels.includes(model) && !perplexityModels.includes(model) && !groqModels.includes(model)) {
 			throw new Error('Invalid model');
 		}
 
-		if(groqModels.includes(model)) {
-			if(model === 'llama2-70b-4096' && maxTokens > 4096) maxTokens = 4096 - 2500;
-			if(model === 'llama3-8b-8192' && maxTokens > 8192) maxTokens = 8192 - 2500;
-			if(model === 'llama3-70b-8192' && maxTokens > 8192) maxTokens = 8192 - 2500;
+		if (groqModels.includes(model)) {
+			if (model === 'llama2-70b-4096' && maxTokens > 4096) maxTokens = 4096 - 2500;
+			if (model === 'llama3-8b-8192' && maxTokens > 8192) maxTokens = 8192 - 2500;
+			if (model === 'llama3-70b-8192' && maxTokens > 8192) maxTokens = 8192 - 2500;
 		}
 
-		if(openAIModels.includes(model)) {
-			if(model === 'gpt-3.5-turbo-16k' && maxTokens > 16000) maxTokens = 16000;
-			if(model === 'gpt-3.5-turbo' && maxTokens > 4096) maxTokens = 4096;
-			if(model === 'gpt-4' && maxTokens > 4096) maxTokens = 4096;
-			if(model === 'gpt-4-turbo' && maxTokens > 4096) maxTokens = 4096;
-			if(model === 'gpt-4-1106-preview' && maxTokens > 4096) maxTokens = 4096;
-			if(model === 'gpt-4-turbo-preview' && maxTokens > 4096) maxTokens = 4096;
+		if (openAIModels.includes(model)) {
+			if (model === 'gpt-3.5-turbo-16k' && maxTokens > 16000) maxTokens = 16000;
+			if (model === 'gpt-3.5-turbo' && maxTokens > 4096) maxTokens = 4096;
+			if (model === 'gpt-4' && maxTokens > 4096) maxTokens = 4096;
+			if (model === 'gpt-4-turbo' && maxTokens > 4096) maxTokens = 4096;
+			if (model === 'gpt-4-1106-preview' && maxTokens > 4096) maxTokens = 4096;
+			if (model === 'gpt-4-turbo-preview' && maxTokens > 4096) maxTokens = 4096;
 		}
 
-		if(perplexityModels.includes(model)) {
-			if(model === 'sonar-small-chat' && maxTokens > 16384) maxTokens = 16384;
-			if(model === 'sonar-small-online' && maxTokens > 12000) maxTokens = 12000;
-			if(model === 'sonar-medium-chat' && maxTokens > 16384) maxTokens = 16384;
-			if(model === 'sonar-medium-online' && maxTokens > 12000) maxTokens = 12000;
-			if(model === 'llama-3-8b-instruct' && maxTokens > 8192) maxTokens = 8192;
-			if(model === 'llama-3-70b-instruct' && maxTokens > 8192) maxTokens = 8192;
-			if(model === 'codellama-70b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if(model === 'mistral-7b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if(model === 'mixtral-8x7b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if(model === 'mixtral-8x22b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if(model === 'llama-3-sonar-large-32k-online' && maxTokens > 4096) maxTokens = 4096;
-			if(model === 'llama-3-sonar-small-32k-online' && maxTokens > 4096) maxTokens = 4096;
+		if (perplexityModels.includes(model)) {
+			if (model === 'sonar-small-chat' && maxTokens > 16384) maxTokens = 16384;
+			if (model === 'sonar-small-online' && maxTokens > 12000) maxTokens = 12000;
+			if (model === 'sonar-medium-chat' && maxTokens > 16384) maxTokens = 16384;
+			if (model === 'sonar-medium-online' && maxTokens > 12000) maxTokens = 12000;
+			if (model === 'llama-3-8b-instruct' && maxTokens > 8192) maxTokens = 8192;
+			if (model === 'llama-3-70b-instruct' && maxTokens > 8192) maxTokens = 8192;
+			if (model === 'codellama-70b-instruct' && maxTokens > 16384) maxTokens = 16384;
+			if (model === 'mistral-7b-instruct' && maxTokens > 16384) maxTokens = 16384;
+			if (model === 'mixtral-8x7b-instruct' && maxTokens > 16384) maxTokens = 16384;
+			if (model === 'mixtral-8x22b-instruct' && maxTokens > 16384) maxTokens = 16384;
+			if (model === 'llama-3-sonar-large-32k-online' && maxTokens > 4096) maxTokens = 4096;
+			if (model === 'llama-3-sonar-small-32k-online' && maxTokens > 4096) maxTokens = 4096;
 		}
 
-		let provider;
+		let provider, authToken;
 
-		if(openAIModels.includes(model)) provider = 'openai';
-		if(perplexityModels.includes(model)) provider = 'perplexity';
-		if(groqModels.includes(model)) provider = 'groq';
+		if (openAIModels.includes(model)) {
+			provider = 'openai';
+			authToken = process.env.OPENAI_API_KEY;
+		}
+		if (perplexityModels.includes(model)) {
+			provider = 'perplexity';
+			authToken = process.env.PERPLEXITY_API_KEY;
+		}
+		if (groqModels.includes(model)) {
+			provider = 'groq';
+			authToken = process.env.GROQ_API_KEY;
+		}
 
-		return { maxTokens, provider };
+		if(!provider || !authToken) {
+			throw new Error(`${provider ? 'Provider' : authToken ? 'Auth Token' : 'Provider and Auth Token'} not found`);
+		}
+
+		return {maxTokens, provider, authToken};
 	}
 
 	/**
@@ -107,9 +179,9 @@ class AIService {
 		let url;
 
 		// return url based on provider
-		if(provider === 'openai') url = 'https://api.openai.com/v1/chat/completions';
-		if(provider === 'perplexity') url = 'https://api.perplexity.ai/chat/completions';
-		if(provider === 'groq') url = 'https://api.groq.com/openai/v1/chat/completions';
+		if (provider === 'openai') url = 'https://api.openai.com/v1/chat/completions';
+		if (provider === 'perplexity') url = 'https://api.perplexity.ai/chat/completions';
+		if (provider === 'groq') url = 'https://api.groq.com/openai/v1/chat/completions';
 
 		return url;
 	}
@@ -127,7 +199,7 @@ class AIService {
 
 		let estimate = promptTokensEstimate({
 			messages: [
-				{ 'role': 'system', 'content': system || 'You are a helpful assistant.' },
+				{'role': 'system', 'content': system || 'You are a helpful assistant.'},
 				...history,
 				{
 					'role': 'user',
@@ -138,15 +210,15 @@ class AIService {
 
 		let chunkSize = 250;
 
-		while(estimate > 2500) {
-			if(estimate <= 2500) chunkSize = 250;
-			if(estimate <= 5000) chunkSize = 500;
-			if(estimate > 10000) chunkSize = 5000;
+		while (estimate > 2500) {
+			if (estimate <= 2500) chunkSize = 250;
+			if (estimate <= 5000) chunkSize = 500;
+			if (estimate > 10000) chunkSize = 5000;
 			system = system.substring(0, system.length - chunkSize);
 
-			if(estimate > 2500 && system.length < 1000) {
-				if(history.length > 0) {
-					if(estimate > 2500 && history[history.length - 1].content.length < 500) {
+			if (estimate > 2500 && system.length < 1000) {
+				if (history.length > 0) {
+					if (estimate > 2500 && history[history.length - 1].content.length < 500) {
 						prompt = prompt.substring(0, prompt.length - chunkSize);
 					}
 
@@ -157,7 +229,7 @@ class AIService {
 			}
 			estimate = promptTokensEstimate({
 				messages: [
-					{ 'role': 'system', 'content': system || 'You are a helpful assistant.' },
+					{'role': 'system', 'content': system || 'You are a helpful assistant.'},
 					...history,
 					{
 						'role': 'user',
@@ -170,11 +242,11 @@ class AIService {
 		system = JSON.stringify(system);
 		prompt = JSON.stringify(prompt);
 
-		for(let i = 0; i < history.length; i++) {
+		for (let i = 0; i < history.length; i++) {
 			history[i].content = JSON.stringify(history[i].content);
 		}
 
-		return { system, history, prompt };
+		return {system, history, prompt};
 	}
 
 	/**
@@ -212,7 +284,7 @@ class AIService {
 			});
 
 			return attachment.data.Location;
-		} catch(e) {
+		} catch (e) {
 			console.error('Error generating image:', e);
 			throw new Error('Error generating image: ' + e.message);
 		}
@@ -229,24 +301,24 @@ class AIService {
 	 */
 	static async audioToText(filePath, deleteFile = true) {
 		try {
-			if(!filePath) throw new Error('No file path provided');
+			if (!filePath) throw new Error('No file path provided');
 			// check that file exists
-			if(!fs.existsSync(filePath)) throw new Error('File does not exist');
+			if (!fs.existsSync(filePath)) throw new Error('File does not exist');
 
 			const transcription = await openai.audio.transcriptions.create({
 				file: fs.createReadStream(filePath),
 				model: 'whisper-1',
 			});
 
-			if(deleteFile) {
+			if (deleteFile) {
 				fs.unlinkSync(filePath);
 			}
 
-			if(!transcription.text) throw new Error('No transcription generated');
+			if (!transcription.text) throw new Error('No transcription generated');
 
 			return transcription.text;
 
-		} catch(error) {
+		} catch (error) {
 			console.error('Error making request to OpenAI:', error);
 			throw new Error('Error making request to OpenAI: ' + error.message);
 		}
@@ -263,7 +335,7 @@ class AIService {
 	static async createImage(prompt, saveToCDN = true) {
 
 		// if no prompt is provided
-		if(!prompt) throw new Error('No prompt provided');
+		if (!prompt) throw new Error('No prompt provided');
 
 		try {
 			const response = await openai.images.generate({
@@ -276,12 +348,12 @@ class AIService {
 			const aiUrl = response.data[0].url;
 
 			// check that response.data[0].url is not empty
-			if(!aiUrl) throw new Error('No image url generated');
+			if (!aiUrl) throw new Error('No image url generated');
 
-			if(saveToCDN) {
+			if (saveToCDN) {
 				// get fileBuffer from url with fetch
 				const image = await fetch(aiUrl);
-				if(!image.ok) throw new Error('Error fetching image');
+				if (!image.ok) throw new Error('Error fetching image');
 
 				const arrayBuffer = await image.arrayBuffer();
 				const buffer = Buffer.from(new Uint8Array(arrayBuffer));
@@ -304,7 +376,7 @@ class AIService {
 			}
 
 			return aiUrl;
-		} catch(e) {
+		} catch (e) {
 			console.error('Error generating image:', e);
 			throw new Error('Error generating image: ' + e.message);
 		}
@@ -449,7 +521,7 @@ class AIService {
 								description: 'The information the user wants to know about their wallet.',
 								items: {
 									type: 'string',
-									enum: [ 'balance', 'transactions', 'nfts' ],
+									enum: ['balance', 'transactions', 'nfts'],
 								},
 							},
 						},
@@ -479,10 +551,10 @@ class AIService {
 			messages: [
 				{
 					role: 'system',
-					content: [ {
+					content: [{
 						type: 'text',
 						text: `You are an AI assistant that solves the best function to be performed based on user input.`,
-					} ],
+					}],
 				},
 				{
 					role: 'user',
@@ -497,9 +569,9 @@ class AIService {
 		const functions = [];
 
 		// if response.choices[0].message.tool_calls exists
-		if(!!response.choices[0].message.tool_calls) {
+		if (!!response.choices[0].message.tool_calls) {
 			// iterate tool_calls
-			for(let tool of response.choices[0].message.tool_calls) {
+			for (let tool of response.choices[0].message.tool_calls) {
 				// JSON.parse(function.arguments) to get the arguments
 				const args = JSON.parse(tool.function.arguments);
 

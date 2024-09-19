@@ -259,6 +259,30 @@ class TelegramService {
 		}
 	}
 
+	static async generateResponse(data){
+		try {
+			const response = await AiService.sendMessage(
+				{
+					model: data.model,
+					system: data.system,
+					prompt: data.prompt,
+					stream: false,
+					history: data.history,
+				}, 'openai'
+			)
+
+			if(response.data.choices){
+				return response.data.choices[0].message.content;
+			}else{
+				throw new Error('No response from AI');
+			}
+
+		} catch (error) {
+			console.error('Error saving message:', error);
+			throw error;
+		}
+	}
+
 }
 
 export default TelegramService;
