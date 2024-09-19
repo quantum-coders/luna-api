@@ -6,10 +6,11 @@ bot.use(async (ctx, next) => {
 	try {
 		await TelegramService.getOrCreateSession(ctx);
 		await TelegramService.getOrCreateChat(ctx);
-		await TelegramService.getChatMessages(ctx);
-		await TelegramService.getTextMessage(ctx);
+		const messages = await TelegramService.getChatMessages(ctx);
+		const prompt = await TelegramService.getTextMessage(ctx);
 		await TelegramService.saveMessage(ctx);
-		const systemPrompt =  await TelegramService.generateSystemPrompt(ctx);
+		const system =  await TelegramService.generateSystemPrompt(ctx);
+	
 	} catch (error) {
 		console.error('Error in bot middleware:', error);
 	}

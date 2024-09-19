@@ -25,13 +25,22 @@ class AIService {
 	static async sendMessage(data, provider) {
 
 		const url = AIService.solveProviderUrl(provider);
-		return await axios.post(url, data, {
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${ process.env.OPENAI_API_KEY }`,
-			},
-			responseType: 'stream',
-		});
+		if(!!data.stream) {
+			return await axios.post(url, data, {
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+				},
+				responseType: 'stream',
+			});
+		}else{
+			return await axios.post(url, data, {
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+				},
+			});
+		}
 	}
 
 	/**
