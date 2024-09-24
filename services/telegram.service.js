@@ -1,13 +1,13 @@
-import {prisma} from "@thewebchimp/primate";
+import { prisma } from '@thewebchimp/primate';
 import ChatService from './chat.service.js';
 import MessageService from './message.service.js';
-import AiService from "./ai.service.js";
-import axios from "axios";
+import AiService from './ai.service.js';
+import axios from 'axios';
 import path from 'path';
-import {fileURLToPath} from 'url';
-import {existsSync, mkdirSync, writeFileSync} from 'fs';
-import PromptService from "./prompt.service.js";
-import RIMService from "./rim.service.js";
+import { fileURLToPath } from 'url';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import PromptService from './prompt.service.js';
+import RIMService from './rim.service.js';
 
 const BOT_USER_ID = process.env.BOT_USER_ID;
 const __filename = fileURLToPath(import.meta.url);
@@ -22,28 +22,28 @@ class TelegramService {
 	 */
 	static async getOrCreateSession(ctx) {
 		try {
-			const key = `session:${ctx.chat.id}`;
+			const key = `session:${ ctx.chat.id }`;
 			let sessionData = await prisma.session.findUnique({
-				where: {key, type: 'telegram'},
+				where: { key, type: 'telegram' },
 			});
 
-			if (!sessionData) {
+			if(!sessionData) {
 				const userInfo = await TelegramService.getUserInfo(ctx);
 				const idUser = await TelegramService.findUser(userInfo.id);
 
 				sessionData = await prisma.session.create({
 					data: {
 						key,
-						value: JSON.stringify({userInfo}),
+						value: JSON.stringify({ userInfo }),
 						type: 'telegram',
-						idUser: idUser ? idUser.id : null
+						idUser: idUser ? idUser.id : null,
 					},
 				});
 			}
 
 			sessionData.value = JSON.parse(sessionData.value);
 			return sessionData;
-		} catch (error) {
+		} catch(error) {
 			console.error('Error getting or creating session:', error);
 			throw error;
 		}
@@ -67,7 +67,7 @@ class TelegramService {
 				firstName: ctx.from.id === BOT_USER_ID ? ctx.update.callback_query.from.first_name : ctx.from.first_name,
 				lastName: ctx.from.id === BOT_USER_ID ? ctx.update.callback_query.from.last_name : ctx.from.last_name,
 			};
-		} catch (error) {
+		} catch(error) {
 			console.error('Error getting user info:', error);
 			throw error;
 		}
@@ -85,11 +85,11 @@ class TelegramService {
 				where: {
 					provider_idProvider: {
 						provider: 'telegram',
-						idProvider: String(idTelegram)
-					}
-				}
+						idProvider: String(idTelegram),
+					},
+				},
 			});
-		} catch (error) {
+		} catch(error) {
 			console.error('Error finding user:', error);
 			throw error;
 		}
@@ -107,9 +107,9 @@ class TelegramService {
 			return await ChatService.getOrCreate({
 				idExternal: session.value.userInfo.id,
 				type: 'telegram',
-				idUser: session.idUser
+				idUser: session.idUser,
 			});
-		} catch (error) {
+		} catch(error) {
 			console.error('Error getting or creating chat:', error);
 			throw error;
 		}
@@ -131,10 +131,10 @@ class TelegramService {
 			return messages.map(message => {
 				return {
 					role: message.role,
-					content: message.content
-				}
+					content: message.content,
+				};
 			});
-		} catch (error) {
+		} catch(error) {
 			console.error('Error getting chat messages:', error);
 			throw error;
 		}
@@ -148,12 +148,12 @@ class TelegramService {
 	 */
 	static async getTextMessage(ctx) {
 		try {
-			if (ctx?.message?.text) {
+			if(ctx?.message?.text) {
 				return ctx.message.text;
 			} else {
 				return await TelegramService.audioToText(ctx);
 			}
-		} catch (error) {
+		} catch(error) {
 			console.error('Error getting text message:', error);
 			throw error;
 		}
@@ -170,20 +170,20 @@ class TelegramService {
 			const fileId = ctx.message.voice.file_id;
 			const file = await ctx.telegram.getFile(fileId);
 			const filePath = file.file_path;
-			const fileUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${filePath}`;
-			const response = await axios.get(fileUrl, {responseType: 'arraybuffer'});
+			const fileUrl = `https://api.telegram.org/file/bot${ process.env.BOT_TOKEN }/${ filePath }`;
+			const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 
 			const fileBuffer = Buffer.from(response.data);
 			const tempDir = path.join(__dirname, './../temp');
-			if (!existsSync(tempDir)) {
+			if(!existsSync(tempDir)) {
 				mkdirSync(tempDir);
 			}
 
-			const oggFilePath = path.join(tempDir, `${fileId}.ogg`);
+			const oggFilePath = path.join(tempDir, `${ fileId }.ogg`);
 			writeFileSync(oggFilePath, fileBuffer);
 
 			return await AiService.audioToText(oggFilePath);
-		} catch (error) {
+		} catch(error) {
 			console.error('Error converting audio to text:', error);
 			throw error;
 		}
@@ -207,7 +207,7 @@ class TelegramService {
 				idUser: user?.idUser,
 				content: text,
 			});
-		} catch (error) {
+		} catch(error) {
 			console.error('Error saving message:', error);
 			throw error;
 		}
@@ -226,26 +226,26 @@ class TelegramService {
 			const session = await TelegramService.getOrCreateSession(ctx);
 
 			// Validate session data
-			if (!session || !session.value || !session.value.userInfo) {
+			if(!session || !session.value || !session.value.userInfo) {
 				throw new Error('Invalid session data.');
 			}
 
-			const {firstName, username, id} = session.value.userInfo;
+			const { firstName, username, id } = session.value.userInfo;
 
 			// Ensure required fields are present
-			if (!firstName || !username || !id) {
-				console.log("Session:", session);
-				throw new Error(`Missing field: ${!firstName ? 'firstName' : !username ? 'username' : 'idUser'}`);
+			if(!firstName || !username || !id) {
+				console.log('Session:', session);
+				throw new Error(`Missing field: ${ !firstName ? 'firstName' : !username ? 'username' : 'idUser' }`);
 			}
 
 			// Extract the prompt from the context
 			const prompt = ctx.message && ctx.message.text ? ctx.message.text : '';
-			if (typeof prompt !== 'string') {
+			if(typeof prompt !== 'string') {
 				throw new Error('Invalid prompt in context.');
 			}
 			let promptKey = 'mainPrompt';
 
-			if (prompt === '/start') {
+			if(prompt === '/start') {
 				promptKey = 'startMainIntro';
 			}
 
@@ -253,11 +253,11 @@ class TelegramService {
 				firstname: firstName,
 				username: username,
 				idUser: id,
-				prompt: prompt
+				prompt: prompt,
 			};
 
 			return PromptService.handleSystemPrompt(promptData, promptKey);
-		} catch (error) {
+		} catch(error) {
 			console.error('Error in generateSystemPrompt:', error);
 			throw error; // Rethrow the error after logging
 		}
@@ -272,16 +272,16 @@ class TelegramService {
 					prompt: data.prompt,
 					stream: false,
 					history: data.history,
-				}, 'openai'
-			)
+				}, 'openai',
+			);
 
-			if (response.data.choices) {
+			if(response.data.choices) {
 				return response.data.choices[0].message.content;
 			} else {
 				throw new Error('No response from AI');
 			}
 
-		} catch (error) {
+		} catch(error) {
 			console.error('Error saving message:', error);
 			throw error;
 		}
@@ -290,24 +290,23 @@ class TelegramService {
 	static async retrieveAnswer(ctx) {
 		try {
 			const prompt = await TelegramService.getTextMessage(ctx);
-			if (!prompt) {
+			if(!prompt) {
 				throw new Error('No prompt provided');
 			}
 			const messages = await TelegramService.getChatMessages(ctx);
-			if (!messages) {
+			if(!messages) {
 				throw new Error('No messages provided');
 			}
 
 			const data = {
-				model: 'gpt-4o-mini',
+				model: 'gpt-4',
 				prompt,
 				messages,
-				stream: false
-			}
+				stream: false,
+			};
 
-			const response = RIMService.messageToRIM(data);
-			return response;
-		} catch (error) {
+			return RIMService.messageToRIM(data);
+		} catch(error) {
 			console.error('Error retrieving answer:', error);
 			throw error;
 		}

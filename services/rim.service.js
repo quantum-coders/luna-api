@@ -8,7 +8,7 @@ class RIMService {
 
 	static async getWalletInfo(args) {
 		let balances = [];
-		if (!!args.properties.wallet) {
+		if(!!args.properties.wallet) {
 			balances = await SolanaService.getAllBalances(args.properties.wallet);
 		}
 		return {
@@ -40,17 +40,15 @@ class RIMService {
 		let search = await YoutubeService.searchVideo(args.prompt, 1);
 		search = search[0];
 
-		console.log('search', search);
-
 		return {
 			rimType: 'video',
-			responseSystemPrompt: `${systemPromptString}
+			responseSystemPrompt: `${ systemPromptString }
 				Generate an answers in the line of "here is your video".
-				This is the video title: ${search.snippet.title}.
-				This is the video description: ${search.snippet.description}`,
+				This is the video title: ${ search.snippet.title }.
+				This is the video description: ${ search.snippet.description }`,
 			parameters: {
 				id: search.id.videoId,
-				url: `https://www.youtube.com/watch?v=${search.id.videoId}`,
+				url: `https://www.youtube.com/watch?v=${ search.id.videoId }`,
 				title: search.snippet.title,
 				author: search.snippet.channelTitle,
 				channelId: search.snippet.channelId,
@@ -63,7 +61,7 @@ class RIMService {
 
 		return {
 			rimType: 'blink',
-			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
+			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${ JSON.stringify(args, null, 2) }. Do not mention the properties, just the fields.`,
 			parameters: {
 				blinkUrl: 'https://appapi.lunadefi.ai/blinks/memo?message={message}',
 				blinkParameters: {
@@ -77,7 +75,7 @@ class RIMService {
 
 		return {
 			rimType: 'blink',
-			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
+			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${ JSON.stringify(args, null, 2) }. Do not mention the properties, just the fields.`,
 			parameters: {
 				blinkUrl: 'https://appapi.lunadefi.ai/blinks/transfer-sol?to={to}&amount={amount}',
 				blinkParameters: {
@@ -91,7 +89,7 @@ class RIMService {
 	static async stakeBonk(args) {
 		return {
 			rimType: 'blink',
-			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
+			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${ JSON.stringify(args, null, 2) }. Do not mention the properties, just the fields.`,
 			parameters: {
 				blinkUrl: 'https://appapi.lunadefi.ai/blinks/stake-bonk?amount={amount}&days={days}',
 				blinkParameters: {
@@ -106,7 +104,7 @@ class RIMService {
 
 		return {
 			rimType: 'blink',
-			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
+			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${ JSON.stringify(args, null, 2) }. Do not mention the properties, just the fields.`,
 			parameters: {
 				blinkUrl: 'https://appapi.lunadefi.ai/blinks/swap?inputMint={inputMint}&outputMint={outputMint}&amount={amount}',
 				blinkParameters: {
@@ -128,14 +126,13 @@ class RIMService {
 	 */
 	static async messageToRIM(data, properties = {}) {
 		try {
-			console.log("Data: ",data)
-			if (!data || !data.messages || data.messages.length === 0) {
+			if(!data || !data.messages || data.messages.length === 0) {
 				throw new Error('Invalid data provided');
 			}
 
 			const userMessage = data.messages.find(msg => msg.role === 'user');
 
-			if (!userMessage || !userMessage.content) {
+			if(!userMessage || !userMessage.content) {
 				throw new Error('User message content not provided');
 			}
 
@@ -143,21 +140,19 @@ class RIMService {
 
 			const actionObject = {
 				messages: data.messages,
-				prompt
-			}
+				prompt,
+			};
 			const actions = await AIService.solveAction(actionObject);
-			console.log("Breaks here")
-			console.log("Action responses:", actions);
 
 			const actionResults = [];
 
-			for (const action of actions) {
-				if (action.name === 'answerMessage') continue;
+			for(const action of actions) {
+				if(action.name === 'answerMessage') continue;
 
 				// Check if the action function exists in RIMService
 				const actionFunction = RIMService[action.name];
-				if (typeof actionFunction !== 'function') {
-					console.error(`The action "${action.name}" is not a valid function in RIMService.`);
+				if(typeof actionFunction !== 'function') {
+					console.error(`The action "${ action.name }" is not a valid function in RIMService.`);
 					continue;
 				}
 
@@ -170,8 +165,8 @@ class RIMService {
 				try {
 					const result = await actionFunction.call(RIMService, argsWithProperties);
 					actionResults.push(result);
-				} catch (error) {
-					console.error(`Error executing action "${action.name}":`, error);
+				} catch(error) {
+					console.error(`Error executing action "${ action.name }":`, error);
 				}
 			}
 
@@ -193,16 +188,12 @@ class RIMService {
 				prompt,
 			};
 
-			console.log("updatedData", updatedData)
-			console.log("properties", properties)
-
 			return await AIService.sendMessage(updatedData, 'openai');
-		} catch (error) {
+		} catch(error) {
 			console.error('Error in RIMService.messageToRIM:', error);
 			throw error;
 		}
 	}
-
 
 }
 

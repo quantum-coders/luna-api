@@ -6,6 +6,7 @@ import {router as defaultRouter} from './routes/default.js';
 import {router as tokens} from './routes/tokens.js';
 import {router as web3} from './routes/web3.js';
 import bot from './telegram.main.js';
+
 primate.app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');
 	res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
