@@ -7,6 +7,7 @@ import path from 'path';
 import {fileURLToPath} from 'url';
 import {existsSync, mkdirSync, writeFileSync} from 'fs';
 import PromptService from "./prompt.service.js";
+import RIMService from "./rim.service.js";
 
 const BOT_USER_ID = process.env.BOT_USER_ID;
 const __filename = fileURLToPath(import.meta.url);
@@ -242,8 +243,12 @@ class TelegramService {
 			if (typeof prompt !== 'string') {
 				throw new Error('Invalid prompt in context.');
 			}
+			let promptKey = 'mainPrompt';
 
-			// Prepare data for prompt handling
+			if (prompt === '/start') {
+				promptKey = 'startMainIntro';
+			}
+
 			const promptData = {
 				firstname: firstName,
 				username: username,
@@ -251,15 +256,14 @@ class TelegramService {
 				prompt: prompt
 			};
 
-			// Generate the system prompt using PromptService
-			return PromptService.handleSystemPrompt(promptData);
+			return PromptService.handleSystemPrompt(promptData, promptKey);
 		} catch (error) {
 			console.error('Error in generateSystemPrompt:', error);
 			throw error; // Rethrow the error after logging
 		}
 	}
 
-	static async generateResponse(data){
+	static async generateResponse(data) {
 		try {
 			const response = await AiService.sendMessage(
 				{
@@ -271,14 +275,40 @@ class TelegramService {
 				}, 'openai'
 			)
 
-			if(response.data.choices){
+			if (response.data.choices) {
 				return response.data.choices[0].message.content;
-			}else{
+			} else {
 				throw new Error('No response from AI');
 			}
 
 		} catch (error) {
 			console.error('Error saving message:', error);
+			throw error;
+		}
+	}
+
+	static async retrieveAnswer(ctx) {
+		try {
+			const prompt = await TelegramService.getTextMessage(ctx);
+			if (!prompt) {
+				throw new Error('No prompt provided');
+			}
+			const messages = await TelegramService.getChatMessages(ctx);
+			if (!messages) {
+				throw new Error('No messages provided');
+			}
+
+			const data = {
+				model: 'gpt-4o-mini',
+				prompt,
+				messages,
+				stream: false
+			}
+
+			const response = RIMService.messageToRIM(data);
+			return response;
+		} catch (error) {
+			console.error('Error retrieving answer:', error);
 			throw error;
 		}
 	}

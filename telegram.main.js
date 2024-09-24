@@ -9,16 +9,9 @@ bot.use(async (ctx, next) => {
 		const messages = await TelegramService.getChatMessages(ctx);
 		const prompt = await TelegramService.getTextMessage(ctx);
 		await TelegramService.saveMessage(ctx);
-		const system =  await TelegramService.generateSystemPrompt(ctx);
-		console.log("System:", system);
-		const response = await TelegramService.generateResponse({
-			model: 'gpt-4o-mini',
-			system,
-			prompt,
-			history: messages
-		});
-		console.log("Respuesta:", response);
-		await ctx.reply(response);
+		const response = await TelegramService.retrieveAnswer(ctx);
+		console.log('response:', response);
+		await ctx.reply(response.data.choices[0].message.content);
 	} catch (error) {
 		console.error('Error in bot middleware:', error);
 	}

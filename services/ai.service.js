@@ -27,7 +27,7 @@ class AIService {
 			model,
 			system = '',
 			prompt,
-			stream = true,
+			stream = false,
 			history = [],
 			mode,
 			temperature = 0.5,
@@ -36,6 +36,8 @@ class AIService {
 			frequencyPenalty = 0.0001,
 			presencePenalty = 0,
 			stop = '',
+			tools,
+			tool_choice,
 		} = data;
 
 		// Sanitize input
@@ -75,6 +77,11 @@ class AIService {
 				stream,
 			};
 
+			if (tools && tool_choice && provider === 'openai' && !stream) {
+				data.tools = tools;
+				data.tool_choice = tool_choice;
+			}
+
 			if (provider === 'openai' && mode === 'json') data.response_format = {type: 'json_object'};
 			if (provider === 'openai') if (stop) data.stop = stop;
 
@@ -86,6 +93,7 @@ class AIService {
 			}
 			const url = AIService.solveProviderUrl(provider);
 			if (!!data.stream) {
+				console.log("================================STREAM ON=======================")
 				payload.responseType = 'stream'
 			}
 			return await axios.post(url, data, payload);
@@ -161,7 +169,7 @@ class AIService {
 			authToken = process.env.GROQ_API_KEY;
 		}
 
-		if(!provider || !authToken) {
+		if (!provider || !authToken) {
 			throw new Error(`${provider ? 'Provider' : authToken ? 'Auth Token' : 'Provider and Auth Token'} not found`);
 		}
 
@@ -382,7 +390,7 @@ class AIService {
 		}
 	}
 
-	static async solveAction(prompt) {
+	static async solveAction(data = []) {
 
 		const tools = [
 			{
@@ -547,7 +555,7 @@ class AIService {
 			},
 		];
 
-		const response = await openai.chat.completions.create({
+		const configData = {
 			messages: [
 				{
 					role: 'system',
@@ -556,22 +564,21 @@ class AIService {
 						text: `You are an AI assistant that solves the best function to be performed based on user input.`,
 					}],
 				},
-				{
-					role: 'user',
-					content: prompt,
-				},
+				...data.messages,
 			],
+			prompt: data.prompt,
 			tools,
 			tool_choice: 'required',
 			model: 'gpt-4',
-		});
+		}
 
+		const response = await AIService.sendMessage(configData, 'openai');
+		console.log("Response", response.data);
 		const functions = [];
 
-		// if response.choices[0].message.tool_calls exists
-		if (!!response.choices[0].message.tool_calls) {
+		if (!!response.data.choices[0].message.tool_calls) {
 			// iterate tool_calls
-			for (let tool of response.choices[0].message.tool_calls) {
+			for (let tool of response.data.choices[0].message.tool_calls) {
 				// JSON.parse(function.arguments) to get the arguments
 				const args = JSON.parse(tool.function.arguments);
 

@@ -14,10 +14,11 @@ class PromptService {
      * @param {string} data.username - The username of the user.
      * @param {string|number} data.idUser - The unique identifier of the user.
      * @param {string} data.prompt - The user input prompt (e.g., '/start').
+     * @param {string} [promptKey=''] - The key to identify the prompt template to use
      * @returns {string} The generated system prompt.
      * @throws {Error} Throws an error if input validation fails or prompt generation encounters an issue.
      */
-    static handleSystemPrompt(data) {
+    static handleSystemPrompt(data, promptKey = 'mainPrompt') {
         try {
             // Validate input data
             this.validateInputData(data);
@@ -29,16 +30,9 @@ class PromptService {
                 idUser,
                 new Date().toISOString(), // Use ISO string for standardized date format
             ];
-
+            // startMainIntro
             let systemPrompt = '';
-
-            // Determine which prompt template to use based on the user input
-            if (prompt === '/start') {
-                systemPrompt = this.generateSystemPrompt('startMainIntro', ...replaceValues);
-            } else {
-                systemPrompt = this.generateSystemPrompt('mainPrompt', ...replaceValues);
-            }
-
+            systemPrompt = this.generateSystemPrompt(promptKey, ...replaceValues);
             return systemPrompt;
         } catch (error) {
             console.error('Error in handleSystemPrompt:', error);
