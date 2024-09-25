@@ -118,7 +118,7 @@ class AIController {
 			const prompt = req.body.prompt;
 			const properties = req.body.properties || {};
 
-			const actions = await AIService.solveAction(prompt);
+			const actions = await AIService.solveAction({ messages: [], prompt });
 
 			res.write(`data: ${ JSON.stringify({ type: 'actionsSolved', actions }) }\n\n`);
 
@@ -136,28 +136,15 @@ class AIController {
 					console.error('Error on action', act.name, e);
 				}
 			}
-
-			const messages = [
-				{
-					role: 'system',
-					content: !!actionRes.length ? actionRes[0].responseSystemPrompt : 'Answer the user in a funny sarcastic way',
-				},
-				{ role: 'user', content: prompt },
-			];
-
+			
 			const data = {
 				model: 'gpt-4',
-				messages,
-				temperature: 0.5,
-				max_tokens: 1024,
-				top_p: 1,
-				frequency_penalty: 0.0001,
-				presence_penalty: 0,
-				stream: true,
+				system: !!actionRes.length ? actionRes[0].responseSystemPrompt : 'Answer the user in a funny sarcastic way',
+				prompt,
+				stream: true
 			};
 
 			const response = await AIService.sendMessage(data, 'openai');
-			//res.writeHead(response.status, response.headers);
 
 			res.write(`data: ${ JSON.stringify({ type: 'rims', rims: actionRes }) }\n\n`);
 

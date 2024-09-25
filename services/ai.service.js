@@ -33,7 +33,7 @@ class AIService {
 			presencePenalty = 0,
 			stop = '',
 			tools,
-			tool_choice,
+			toolChoice,
 		} = data;
 
 		// Sanitize input
@@ -75,9 +75,9 @@ class AIService {
 
 			console.log("System: -----------------> ", system);
 
-			if (tools && tool_choice && provider === 'openai' && !stream) {
+			if (tools && toolChoice && provider === 'openai' && !stream) {
 				data.tools = tools;
-				data.tool_choice = tool_choice;
+				data.tool_choice = toolChoice;
 			}
 
 			if (provider === 'openai' && mode === 'json') data.response_format = { type: 'json_object' };
@@ -396,6 +396,8 @@ class AIService {
 	 */
 	static async solveAction(data = {}) {
 
+		console.log('Data', data);
+
 		const tools = [
 			{
 				type: 'function',
@@ -572,11 +574,9 @@ class AIService {
 			],
 			prompt: data.prompt,
 			tools,
-			tool_choice: 'required',
+			toolChoice: 'required',
 			model: 'gpt-4',
 		};
-
-		console.log('ConfigData', configData);
 
 		const response = await AIService.sendMessage(configData, 'openai');
 		console.log('Response', response.data);
