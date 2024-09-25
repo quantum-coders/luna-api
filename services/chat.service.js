@@ -41,10 +41,11 @@ class ChatService {
    * @returns {Promise<Object>} The newly created message object.
    */
   static async saveMessage(data) {
-    const { idChat, responseTo, content, messageType = 'text', idUser } = data;
+    const { idChat, responseTo, content, messageType = 'text', idUser, role = 'user' } = data;
     return prisma.message.create({
       data: {
         idChat,
+        role,
         idUser,
         content,
         messageType,

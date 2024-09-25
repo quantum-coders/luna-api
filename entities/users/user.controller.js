@@ -89,7 +89,6 @@ class UserController extends PrimateController {
 		}
 	};
 
-
 	static async userBlinks(req, res, next) {
 		try {
 			const user = req.user.payload;

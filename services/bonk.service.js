@@ -7,8 +7,10 @@ import {
 import * as anchor from '@coral-xyz/anchor';
 import BN from 'bn.js';
 import idl from '../assets/idl/spl_token_staking.json' assert { type: 'json' };
-import chalk from 'chalk'; // Import chalk
 
+/**
+ * BonkService class to manage staking and token transactions on the Solana blockchain.
+ */
 class BonkService {
 	static connection = new Connection('https://api.mainnet-beta.solana.com');
 	static provider = new anchor.AnchorProvider(
@@ -26,27 +28,30 @@ class BonkService {
 
 	static program = new anchor.Program(idl, BonkService.PROGRAM_ID, BonkService.provider);
 
+	/**
+	 * Ensures the user has sufficient balance for the transaction.
+	 * @param {PublicKey} userPublicKey - The public key of the user.
+	 * @param {number} requiredBalance - The required balance in SOL.
+	 * @throws Will throw an error if the user's balance is insufficient.
+	 */
 	static async ensureSufficientBalance(userPublicKey, requiredBalance) {
 		const balance = await BonkService.connection.getBalance(userPublicKey);
-		if(balance < requiredBalance) {
+		if (balance < requiredBalance) {
 			throw new Error('Insufficient SOL balance for transaction fees.');
 		}
 	}
 
+	/**
+	 * Locks BONK tokens for a specified duration.
+	 * @param {PublicKey} userPublicKey - The public key of the user.
+	 * @param {number} amount - The amount of BONK tokens to lock.
+	 * @param {number} days - The number of days to lock the tokens for.
+	 * @returns {Promise<string>} The serialized transaction as a base64 string.
+	 */
 	static async lockBonk(userPublicKey, amount, days) {
-		console.log(chalk.green('lockBonk called with:'), chalk.blue(JSON.stringify({
-			userPublicKey: userPublicKey.toBase58(),
-			amount,
-			days,
-		})));
-
 		const nonce = await BonkService.findCurrentNonce(userPublicKey);
-		console.log(chalk.green('Nonce found:'), chalk.blue(nonce));
-
 		const lockupDuration = new BN(days * 24 * 60 * 60);
 		const amountBN = new BN(amount).mul(new BN(1e5));
-		console.log(chalk.green('lockupDuration:'), chalk.blue(lockupDuration.toString()));
-		console.log(chalk.green('amountBN:'), chalk.blue(amountBN.toString()));
 
 		const requiredBalance = 0.01 * LAMPORTS_PER_SOL; // Adjust based on expected fees
 		await BonkService.ensureSufficientBalance(userPublicKey, requiredBalance);
@@ -60,57 +65,50 @@ class BonkService {
 			],
 			BonkService.PROGRAM_ID,
 		);
-		console.log(chalk.green('stakeDepositReceiptPDA:'), chalk.blue(stakeDepositReceiptPDA.toBase58()));
 
 		const transaction = new Transaction();
 
-		// Crear o obtener la cuenta de token del usuario
+		// Create or get the user's token account
 		const userTokenAccountAddress = await getAssociatedTokenAddress(
 			BonkService.MINT_PUBLIC_KEY,
 			userPublicKey,
 		);
-		console.log(chalk.green('userTokenAccountAddress:'), chalk.blue(userTokenAccountAddress.toBase58()));
-		/// console log bonk balance
+
 		const bonkBalance = await getAccount(BonkService.connection, userTokenAccountAddress);
-		console.log(chalk.green('------------>bonkBalance:'), chalk.blue(bonkBalance.amount.toString()));
 
 		const userTokenAccountInfo = await BonkService.connection.getAccountInfo(userTokenAccountAddress);
-		if(!userTokenAccountInfo) {
-			console.log(chalk.yellow('Creating user token account'));
+		if (!userTokenAccountInfo) {
 			const createUserTokenAccountInstruction = createAssociatedTokenAccountInstruction(
-				userPublicKey, // Pagador de la transacción (puede ser diferente al dueño de la ATA)
+				userPublicKey,
 				userTokenAccountAddress,
-				userPublicKey, // Dueño de la ATA
+				userPublicKey,
 				BonkService.MINT_PUBLIC_KEY,
 			);
 			transaction.add(createUserTokenAccountInstruction);
-		} else {
-			console.log(chalk.green('User token account already exists'));
 		}
 
-		/// now get the associated token account for destination which uses stake mint
+		// Get the associated token account for the destination using the stake mint
 		const destinationTokenAccountAddress = await getAssociatedTokenAddress(
 			BonkService.STAKE_MINT_PUBLIC_KEY,
 			userPublicKey,
 		);
-		console.log(chalk.green('destinationTokenAccountAddress:'), chalk.blue(destinationTokenAccountAddress.toBase58()));
+
 		const destinationTokenAccountInfo = await BonkService.connection.getAccountInfo(destinationTokenAccountAddress);
-		if(!destinationTokenAccountInfo) {
-			console.log(chalk.yellow('Creating destination token account'));
+		if (!destinationTokenAccountInfo) {
 			const createDestinationTokenAccountInstruction = createAssociatedTokenAccountInstruction(
-				userPublicKey, // Pagador de la transacción (puede ser diferente al dueño de la ATA)
+				userPublicKey,
 				destinationTokenAccountAddress,
-				userPublicKey, // Dueño de la ATA
+				userPublicKey,
 				BonkService.STAKE_MINT_PUBLIC_KEY,
 			);
 			transaction.add(createDestinationTokenAccountInstruction);
 		}
 
-		// Instrucción de staking (usando la misma ATA para origen y destino)
+		// Staking instruction (using the same ATA for source and destination)
 		const ix = await BonkService.program.methods
 			.deposit(nonce, amountBN, lockupDuration)
 			.accounts({
-				payer: userPublicKey, // Pagador de la transacción (puede ser diferente al dueño de la ATA)
+				payer: userPublicKey,
 				owner: userPublicKey,
 				from: userTokenAccountAddress,
 				vault: BonkService.VAULT_PUBLIC_KEY,
@@ -124,29 +122,33 @@ class BonkService {
 			})
 			.instruction();
 
-		// (Opcional) Agregar la cuenta adicional si es necesario
+		// (Optional) Add additional account if necessary
 		ix.keys.push({
-			pubkey: new PublicKey('2PPAJ8P5JgKZjkxq4h3kFSwLcuakFYr4fbV68jGghWxi'), // Reemplaza con la clave pública correcta
+			pubkey: new PublicKey('2PPAJ8P5JgKZjkxq4h3kFSwLcuakFYr4fbV68jGghWxi'), // Replace with the correct public key
 			isSigner: false,
 			isWritable: false,
 		});
 
 		transaction.add(ix);
 
-		transaction.feePayer = userPublicKey; // El pagador de la tarifa puede ser diferente al propietario de la ATA
+		transaction.feePayer = userPublicKey;
 		transaction.recentBlockhash = (await BonkService.connection.getLatestBlockhash()).blockhash;
 
-		// return the transaction to be able to sign it later
+		// Return the transaction to be signed later
 		return transaction.serialize({
 			verifySignatures: false,
 			requireAllSignatures: false,
 		}).toString('base64');
 	}
 
+	/**
+	 * Finds the current nonce for the user.
+	 * @param {PublicKey} userPublicKey - The public key of the user.
+	 * @returns {Promise<number>} The current nonce.
+	 */
 	static async findCurrentNonce(userPublicKey) {
-		console.log(chalk.green('Finding current nonce for userPublicKey:'), chalk.blue(userPublicKey.toBase58()));
 		let nonce = 0;
-		for(let i = 0; i < 10; i++) {
+		for (let i = 0; i < 10; i++) {
 			const [stakeDepositReceiptPDA] = await PublicKey.findProgramAddress(
 				[
 					userPublicKey.toBuffer(),
@@ -157,12 +159,11 @@ class BonkService {
 				BonkService.PROGRAM_ID,
 			);
 			const stakeDepositInfo = await BonkService.connection.getAccountInfo(stakeDepositReceiptPDA);
-			if(!stakeDepositInfo) {
+			if (!stakeDepositInfo) {
 				nonce = i;
 				break;
 			}
 		}
-		console.log(chalk.green('Current nonce:'), chalk.blue(nonce));
 		return nonce;
 	}
 }
