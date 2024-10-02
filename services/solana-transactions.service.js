@@ -140,7 +140,6 @@ class SolanaTransactionBuilder {
 	 * @throws {Error} - If the input or output mint is invalid, or if the slippage exceeds 10%.
 	 */
 	async buildSwapTransaction(publicKey, inputMint, outputMint, amount, slippageBps = 0.5, destinationWallet = null) {
-		console.log('Slippage received: ', slippageBps);
 		const inputMintData = await getMint(this.connection, new PublicKey(inputMint));
 		const outputMintData = await getMint(this.connection, new PublicKey(outputMint));
 		if (!inputMintData || !outputMintData) {

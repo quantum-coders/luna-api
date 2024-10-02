@@ -25,6 +25,5 @@ primate.app.use('/blinks', blinks);
 primate.app.use('/tokens', tokens);
 primate.app.use('/web3', web3);
 primate.app.use('/', defaultRouter);
-console.log("checkpoint 1")
 bot.start();
 

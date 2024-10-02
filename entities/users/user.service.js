@@ -218,7 +218,7 @@ class UserService {
 
 				return wallet.user;
 			} else {
-				console.log('No wallet found for the given address and network');
+				console.error('No wallet found for the given address and network');
 				return null;
 			}
 		} catch (e) {

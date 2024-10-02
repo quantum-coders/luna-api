@@ -21,7 +21,6 @@ class Web3Service {
         // Derive the public key from the secret key
         const keyPair = nacl.sign.keyPair.fromSeed(secretKey);
 
-        console.log('Public key:', keyPair, keyPair.publicKey);
 
         return bs58.encode(keyPair.publicKey);
     }

@@ -19,7 +19,7 @@ class ExaService {
 	 * @returns {Promise<Object>} - The search results.
 	 * @example
 	 * const results = await ExaService.search('hottest AI startups', { type: 'neural', useAutoprompt: true, numResults: 10, text: true });
-	 * console.log(results);
+	 *
 	 */
 	static async search(query, options = {}) {
 		try {
@@ -41,7 +41,7 @@ class ExaService {
 	 * @returns {Promise<Object>} - The contents of the documents.
 	 * @example
 	 * const contents = await ExaService.getContents(['document_id_1', 'document_id_2']);
-	 * console.log(contents);
+	 *
 	 */
 	static async getContents(ids) {
 		try {
@@ -67,7 +67,7 @@ class ExaService {
 	 * @returns {Promise<Object>} - The similar links.
 	 * @example
 	 * const similarLinks = await ExaService.findSimilar('https://example.com/some-article', { numResults: 5 });
-	 * console.log(similarLinks);
+	 *
 	 */
 	static async findSimilar(url, options = {}) {
 		try {
@@ -93,7 +93,7 @@ class ExaService {
 	 *   { title: 'Title 2', url: 'https://example.com', publishedDate: '2022-01-01', author: 'Author 2' }
 	 * ];
 	 * const apaReferences = ExaService.generateAPA(items);
-	 * console.log(apaReferences);
+	 *
 	 */
 	static generateAPA(items) {
 		return items.map(item => {

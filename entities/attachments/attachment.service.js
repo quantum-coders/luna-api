@@ -111,7 +111,7 @@ class AttachmentService {
 		try {
 
 			// get the mime type of file
-			const mimeType = file.mimetype;
+			const mimeType =  mime.lookup(file.originalname);
 			const acl = params.acl || 'public-read';
 
 			// The file should go to /upload/[year]/[month]/[filename]
@@ -137,6 +137,7 @@ class AttachmentService {
 				Body: file.buffer,
 				ACL: acl,
 				ContentType: mimeType,
+
 			};
 
 			// s3 upload with await
@@ -152,6 +153,7 @@ class AttachmentService {
 					size: file.size,
 					source: 'digitalocean',
 					acl: acl,
+					url: data.Location,
 					metas: {
 						location: data.Location,
 					},

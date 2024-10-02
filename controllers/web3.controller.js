@@ -4,7 +4,6 @@ class Web3Controller {
 
 	static async generatePublicKey(req, res) {
 		try {
-			console.log('Creating deep link');
 
 			const { provider, url } = req.body;
 
@@ -23,8 +22,6 @@ class Web3Controller {
 
 	static async encodeWalletPayload(req, res) {
 		try {
-			console.log('Encoding wallet payload');
-
 			const { encryptionPK, payload } = req.body;
 
 			const encodedPayload = Web3Service.encodeWalletPayload(encryptionPK, payload);
@@ -42,7 +39,6 @@ class Web3Controller {
 
 	static async decodeWalletPayload(req, res) {
 		try {
-			console.log('Decoding wallet payload');
 
 			const { encryptionPK, nonce, payload } = req.body;
 

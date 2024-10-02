@@ -32,6 +32,12 @@ router.put('/:id/profile', auth, UserController.updateProfile);
 
 router.get('/me/blinks', auth, UserController.userBlinks);
 
+router.post('/me/chat', auth, UserController.createChat)
+
+router.get('/me/chat/:id', auth, UserController.getChat)
+
+router.get('/me/chat/:uid/history', auth, UserController.getChatHistory);
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 setupRoute('user', router, options);

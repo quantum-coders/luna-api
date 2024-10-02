@@ -14,6 +14,7 @@ model Attachment {
   attachment String   @default("")
   mime       String   @default("")
   size       Int      @default(0)
+  url        String   @default("")
   source     String   @default("")
   acl        String   @default("")
   metas      Json?    @default("{}")
@@ -52,6 +53,7 @@ model User {
 
 model Chat {
   id         Int       @id @default(autoincrement())
+  uid        String    @unique @default(cuid())
   idUser     Int?      @map("id_user")
   idExternal String?   @unique @map("external_id")
   type       String    @default("telegram")
@@ -66,25 +68,43 @@ model Chat {
 }
 
 model Message {
-  id            Int      @id @default(autoincrement())
-  content       String   @db.LongText
-  role          String   @default("user")
-  messageType   String   @map("message_type")
-  idUser        Int?     @map("id_user")
-  idChat        Int      @map("id_chat")
-  responseTo    Int?     @map("response_to")
-  attachmentUrl String?  @map("attachment_url")
-  created       DateTime @default(now()) @map("created")
-  modified      DateTime @default(now()) @map("modified")
+  id          Int      @id @default(autoincrement())
+  uid         String   @unique @default(cuid())
+  content     String   @db.LongText
+  role        String   @default("user")
+  messageType String   @map("message_type")
+  idUser      Int?     @map("id_user")
+  idChat      Int      @map("id_chat")
+  responseTo  Int?     @map("response_to")
+  created     DateTime @default(now()) @map("created")
+  modified    DateTime @default(now()) @map("modified")
 
   parentMessage Message?  @relation("responses", fields: [responseTo], references: [id])
   responses     Message[] @relation("responses")
   user          User?     @relation(fields: [idUser], references: [id])
   chat          Chat      @relation(fields: [idChat], references: [id])
 
-  rims Rim[]
+  rims     Rim[]
+  variants Variant[]
 
   @@map("message")
+}
+
+model Variant {
+  id        Int      @id @default(autoincrement())
+  idMessage Int      @map("id_message")
+  type      String
+  url       String?
+  data      Json?
+  mimeType  String?  @map("mime_type")
+  size      Int?
+  metadata  Json?
+  created   DateTime @default(now())
+  modified  DateTime @default(now())
+
+  message Message @relation(fields: [idMessage], references: [id])
+
+  @@map("variant")
 }
 
 model Rim {

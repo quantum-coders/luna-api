@@ -104,7 +104,7 @@ class TelegramService {
 	static async getOrCreateChat(ctx) {
 		try {
 			const session = await TelegramService.getOrCreateSession(ctx);
-			return await ChatService.getOrCreate({
+			return await ChatService.getOrCreateTelegram({
 				idExternal: session.value.userInfo.id,
 				type: 'telegram',
 				idUser: session.idUser,
@@ -265,7 +265,7 @@ class TelegramService {
 
 			// Ensure required fields are present
 			if(!firstName || !username || !id) {
-				console.log('Session:', session);
+				console.error('Session:', session);
 				throw new Error(`Missing field: ${ !firstName ? 'firstName' : !username ? 'username' : 'idUser' }`);
 			}
 

@@ -111,8 +111,6 @@ class SolanaActionController {
 
 		const json = actionMapping[path];
 
-		console.log(req.query);
-
 		// Prepare custom data
 
 		if (req.query.primaryColor) {
@@ -474,8 +472,6 @@ class SolanaActionController {
 			// Use BonkService to create the lockBonk transaction
 			const encodedTransaction = await BonkService.lockBonk(userPublicKey, amount, days);
 
-			console.log('Unsigned transaction:', encodedTransaction);
-
 			return res.respond({
 				status: 200,
 				data: {transaction: encodedTransaction},
@@ -513,8 +509,6 @@ class SolanaActionController {
 				message: 'Bad Request: Missing required fields, field missing: ' + (!account ? 'account' : !inputMint ? 'inputMint' : !outputMint ? 'outputMint' : 'amount'),
 			});
 		}
-
-		console.log('Slippage: ', slippageBps);
 		try {
 			const encodedTransaction = await SolanaTransactionBuilder.buildSwapTransaction(
 				new PublicKey(account),
@@ -550,8 +544,6 @@ class SolanaActionController {
 				message: 'Bad Request: Missing required fields',
 			});
 		}
-
-		console.log(new PublicKey(account));
 
 		try {
 			const encodedTransaction = await SolanaTransactionBuilder.buildTransferSolTransaction(
@@ -655,7 +647,6 @@ class SolanaActionController {
 
 		try {
 
-			console.log("Wtf bro")
 
 			const encodedTransaction = await MetaplexService.mintNFT(
 				account,
@@ -679,7 +670,6 @@ class SolanaActionController {
 	}
 
 	static async handlePostCreateNFTCollection(req, res) {
-		console.log("Creating NFT Collection------------------------>");
 		const {account} = req.body;
 		const metadata = req.query.metadata;
 

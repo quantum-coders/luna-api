@@ -3,11 +3,13 @@ import queryString from 'query-string';
 import axios from 'axios';
 
 // Services
-import {jwt, PrimateController} from '@thewebchimp/primate';
+import {jwt, PrimateController, prisma} from '@thewebchimp/primate';
 import UserService from './user.service.js';
 import AttachmentService from '../attachments/attachment.service.js';
 import WalletService from "../../services/wallet.service.js";
 import userService from "./user.service.js";
+import ChatService from "../../services/chat.service.js";
+import MessageService from "../../services/message.service.js";
 
 class UserController extends PrimateController {
 
@@ -79,9 +81,7 @@ class UserController extends PrimateController {
 				message,
 			});
 		} catch (e) {
-
-			console.log(e);
-
+			console.error(e);
 			return res.respond({
 				status: 400,
 				message: 'Error creating user: ' + e.message,
@@ -102,6 +102,7 @@ class UserController extends PrimateController {
 			next(createError(404, e.message));
 		}
 	}
+
 	static async register(req, res, next) {
 		try {
 			const data = await UserService.create(req.body);
@@ -388,6 +389,132 @@ class UserController extends PrimateController {
 				status: 400,
 				message,
 			});
+		}
+	}
+
+	static async createChat(req, res, next) {
+		try {
+
+			const user = req.user.payload;
+			/// validate user has id if not return error
+			if (!user.id) {
+				return res.respond({
+					status: 400,
+					message: 'Error creating chat: User not found',
+				});
+			}
+			const data = await ChatService.create(
+				{
+					idUser: user.id,
+					type: 'Web'
+				}
+			)
+
+			res.respond({
+				data,
+				message: 'Chat created successfully',
+			});
+		} catch (e) {
+
+			res.respond({
+				status: 400,
+				message: 'Error creating chat: ' + e.message,
+			});
+		}
+	}
+
+	static async getChat(req, res, next) {
+		try {
+			const user = req.user.payload;
+			if (!user.id) {
+				return res.respond({
+					status: 400,
+					message: 'Error getting chat: User not found',
+				});
+			}
+			const chat = await ChatService.get(user.id);
+
+			res.respond({
+				data: chat,
+			});
+		} catch (e) {
+			next(createError(404, e.message));
+		}
+	}
+
+	/**
+	 * Retrieves the chat history with pagination for a specific chat UID.
+	 *
+	 * @param {Object} req - The request object.
+	 * @param {Object} res - The response object.
+	 * @param {Function} next - The next middleware function.
+	 */
+	static async getChatHistory(req, res, next) {
+		try {
+			/// Obtener uid del parámetro de la URL
+			const uid = req.params.uid;
+
+			/// Obtener el usuario autenticado
+			const user = req.user.payload;
+
+			// Verificar si el usuario tiene un ID
+			if (!user.id) {
+				return res.respond({
+					status: 400,
+					message: 'Error al obtener el historial del chat: Usuario no encontrado',
+				});
+			}
+
+			/// Obtener el chat por UID
+			const chat = await ChatService.getByUid(uid);
+
+			// Verificar si el chat existe y el usuario tiene acceso
+			if (!chat) {
+				return res.respond({
+					status: 404,
+					message: 'Chat no encontrado',
+				})
+			}
+			/// Obtener parámetros de paginación de los query parameters
+			const limit = parseInt(req.query.limit, 10) || 10; // Valor predeterminado: 10
+			const offset = parseInt(req.query.offset, 10) || 0; // Valor predeterminado: 0
+
+			// Validar que limit y offset sean números válidos
+			if (isNaN(limit) || isNaN(offset)) {
+				return res.status(400).json({
+					message: 'Los parámetros de paginación deben ser números válidos.',
+				});
+			}
+
+			/// Obtener mensajes con paginación utilizando MessageService
+			const paginatedMessages = await MessageService.getPaginatedMessages({
+				idChat: chat.id, // Asumiendo que el chat tiene un campo 'id'
+				limit,
+				offset,
+			});
+
+			const messages = paginatedMessages.messages.map(message => {
+				return {
+					role: message.role,
+					text: message.content,
+					timestamp: message.created,
+					uid: message.uid,
+					variants: message.variants,
+					audioLoading: false,
+				}
+			});
+
+
+			return res.respond({
+				data: messages,
+			})
+		} catch (error) {
+			// Manejar errores inesperados
+			console.error('Error en getChatHistory:', error);
+			return res.respond({
+				status: 500,
+				message: 'Error al obtener el historial del chat',
+			})
 		}
 	}
 

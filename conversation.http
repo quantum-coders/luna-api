@@ -1,0 +1,10 @@
+### Enviar un mensaje a RIM
+POST http://localhost:1337/ai/message/rim
+Authorization:
+Content-Type: application/json
+
+{
+  "prompt": "Hola",
+  "properties": {
+  }
+}

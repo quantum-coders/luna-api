@@ -1,11 +1,12 @@
 import 'dotenv/config';
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 import fs from 'fs';
 import axios from 'axios';
 import OpenAI from 'openai';
-import { promptTokensEstimate } from 'openai-chat-tokens';
-import { openAIModels, perplexityModels, groqModels } from '../assets/data/ai-models.js';
+import {promptTokensEstimate} from 'openai-chat-tokens';
+import {groqModels, openAIModels, perplexityModels} from '../assets/data/ai-models.js';
 import AttachmentService from '../entities/attachments/attachment.service.js';
+
 const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
 class AIService {
@@ -25,85 +26,67 @@ class AIService {
 			prompt,
 			stream = false,
 			history = [],
-			mode,
 			temperature = 0.5,
-			maxTokens = 1024,
-			topP = 1,
-			frequencyPenalty = 0.0001,
-			presencePenalty = 0,
+			max_tokens,
+			top_p = 1,
+			frequency_penalty = 0.0001,
+			presence_penalty = 0,
 			stop = '',
 			tools,
-			toolChoice,
+			tool_choice,
 		} = data;
 
-		// Sanitize input
 		if (!model || !prompt) {
-			const missingFields = [];
-			if (!model) missingFields.push('model');
-			if (!prompt) missingFields.push('prompt');
-			throw new Error('Missing required fields: ' + missingFields.join(', '));
+			throw new Error('Missing required fields: ' + (!model ? 'model' : 'prompt'));
 		}
 
 		try {
-			// Get model information (maxTokens and provider)
-			const modelInfo = AIService.solveModelInfo(model);
-			const provider = modelInfo.provider;
-			maxTokens = modelInfo.maxTokens;
+			const modelInfo = this.solveModelInfo(model);
+			provider = modelInfo.provider;
+			const contextWindow = modelInfo.contextWindow;
 
-			// Adjust sizes to avoid token limit
-			const adjustHistory = AIService.adjustHistory(system, history, prompt);
-			system = adjustHistory.system;
-			history = adjustHistory.history;
-			prompt = adjustHistory.prompt;
+			const adjustedContent = this.adjustContent(system, history, prompt, contextWindow);
+			system = adjustedContent.system;
+			history = adjustedContent.history;
+			prompt = adjustedContent.prompt;
 
 			const messages = [
-				{ 'role': 'system', 'content': system || 'You are a helpful assistant.' },
+				{role: 'system', content: system},
 				...history,
-				{ 'role': 'user', 'content': prompt || 'Hello' },
+				{role: 'user', content: prompt},
 			];
 
-			const data = {
+			const requestData = {
 				model,
 				messages,
 				temperature,
-				max_tokens: maxTokens,
-				top_p: topP,
-				frequency_penalty: frequencyPenalty,
-				presence_penalty: presencePenalty,
+				max_tokens: max_tokens || (contextWindow - this.estimateTokens(messages)),
+				top_p,
+				frequency_penalty,
+				presence_penalty,
 				stream,
 			};
 
-			console.log("System: -----------------> ", system);
-
-			if (tools && toolChoice && provider === 'openai' && !stream) {
-				data.tools = tools;
-				data.tool_choice = toolChoice;
+			if (tools && tool_choice && provider === 'openai' && !stream) {
+				requestData.tools = tools;
+				requestData.tool_choice = tool_choice;
 			}
 
-			if (provider === 'openai' && mode === 'json') data.response_format = { type: 'json_object' };
-			if (provider === 'openai') if (stop) data.stop = stop;
+			if (stop) requestData.stop = stop;
 
-			const payload = {
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${modelInfo.authToken}`,
-				},
+			const url = this.solveProviderUrl(provider);
+			const headers = {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${modelInfo.authToken}`,
 			};
-			const url = AIService.solveProviderUrl(provider);
-			if (!!data.stream) {
-				payload.responseType = 'stream';
-			}
-			return await axios.post(url, data, payload);
 
+			const axiosConfig = {headers};
+			if (stream) axiosConfig.responseType = 'stream';
+
+			return await axios.post(url, requestData, axiosConfig);
 		} catch (error) {
 			console.error('Error:', error);
-			if (error.response) {
-				throw new Error('Error to process the request: ' + error.message);
-			} else if (error.request) {
-				throw new Error('Error to process the request: ' + error.message);
-			} else {
-				throw new Error('Error to process the request: ' + error.message);
-			}
+			throw new Error('Error processing the request: ' + error.message);
 		}
 	}
 
@@ -115,62 +98,41 @@ class AIService {
 	 * @throws {Error} - Throws an error if the model is not recognized.
 	 */
 	static solveModelInfo(model) {
-		let maxTokens = 4096;
+		const allModels = [...openAIModels, ...perplexityModels, ...groqModels];
+		const modelInfo = allModels.find(m => m.name === model);
 
-		if (!openAIModels.includes(model) && !perplexityModels.includes(model) && !groqModels.includes(model)) {
-			throw new Error('Invalid model');
-		}
-
-		if (groqModels.includes(model)) {
-			if (model === 'llama2-70b-4096' && maxTokens > 4096) maxTokens = 4096 - 2500;
-			if (model === 'llama3-8b-8192' && maxTokens > 8192) maxTokens = 8192 - 2500;
-			if (model === 'llama3-70b-8192' && maxTokens > 8192) maxTokens = 8192 - 2500;
-		}
-
-		if (openAIModels.includes(model)) {
-			if (model === 'gpt-3.5-turbo-16k' && maxTokens > 16000) maxTokens = 16000;
-			if (model === 'gpt-3.5-turbo' && maxTokens > 4096) maxTokens = 4096;
-			if (model === 'gpt-4' && maxTokens > 4096) maxTokens = 4096;
-			if (model === 'gpt-4-turbo' && maxTokens > 4096) maxTokens = 4096;
-			if (model === 'gpt-4-1106-preview' && maxTokens > 4096) maxTokens = 4096;
-			if (model === 'gpt-4-turbo-preview' && maxTokens > 4096) maxTokens = 4096;
-		}
-
-		if (perplexityModels.includes(model)) {
-			if (model === 'sonar-small-chat' && maxTokens > 16384) maxTokens = 16384;
-			if (model === 'sonar-small-online' && maxTokens > 12000) maxTokens = 12000;
-			if (model === 'sonar-medium-chat' && maxTokens > 16384) maxTokens = 16384;
-			if (model === 'sonar-medium-online' && maxTokens > 12000) maxTokens = 12000;
-			if (model === 'llama-3-8b-instruct' && maxTokens > 8192) maxTokens = 8192;
-			if (model === 'llama-3-70b-instruct' && maxTokens > 8192) maxTokens = 8192;
-			if (model === 'codellama-70b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if (model === 'mistral-7b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if (model === 'mixtral-8x7b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if (model === 'mixtral-8x22b-instruct' && maxTokens > 16384) maxTokens = 16384;
-			if (model === 'llama-3-sonar-large-32k-online' && maxTokens > 4096) maxTokens = 4096;
-			if (model === 'llama-3-sonar-small-32k-online' && maxTokens > 4096) maxTokens = 4096;
+		if (!modelInfo) {
+			throw new Error(`Model info not found for ${model}`);
 		}
 
 		let provider, authToken;
 
-		if (openAIModels.includes(model)) {
+		if (openAIModels.some(m => m.name === model)) {
 			provider = 'openai';
 			authToken = process.env.OPENAI_API_KEY;
-		}
-		if (perplexityModels.includes(model)) {
+		} else if (perplexityModels.some(m => m.name === model)) {
 			provider = 'perplexity';
 			authToken = process.env.PERPLEXITY_API_KEY;
-		}
-		if (groqModels.includes(model)) {
+		} else if (groqModels.some(m => m.name === model)) {
 			provider = 'groq';
 			authToken = process.env.GROQ_API_KEY;
+		} else {
+			throw new Error(`Provider not found for model: ${model}`);
 		}
 
-		if (!provider || !authToken) {
-			throw new Error(`${provider ? 'Provider' : authToken ? 'Auth Token' : 'Provider and Auth Token'} not found`);
+		if (!authToken) {
+			throw new Error(`Auth token not found for provider: ${provider}`);
 		}
 
-		return { maxTokens, provider, authToken };
+		// Use the contextWindow from the modelInfo, or set a default if not specified
+		const contextWindow = modelInfo.contextWindow || 4096;  // Default to 4096 if not specified
+
+		return {
+			...modelInfo,
+			provider,
+			authToken,
+			contextWindow
+		};
 	}
 
 	/**
@@ -200,58 +162,41 @@ class AIService {
 	 * @returns {Object} - An object containing the adjusted system message and history.
 	 * @throws {Error} - Throws an error if there is an issue with the adjustment.
 	 */
-	static adjustHistory(system, history, prompt) {
+	static adjustContent(system, history, prompt, contextWindow, reservedTokens = 100) {
+		const targetTokens = contextWindow - reservedTokens;
+		let currentTokens = this.estimateTokens([
+			{role: 'system', content: system},
+			...history,
+			{role: 'user', content: prompt}
+		]);
 
-		let estimate = promptTokensEstimate({
-			messages: [
-				{ 'role': 'system', 'content': system || 'You are a helpful assistant.' },
-				...history,
-				{
-					'role': 'user',
-					'content': prompt || 'Hello',
-				},
-			],
-		});
-
-		let chunkSize = 250;
-
-		while (estimate > 2500) {
-			if (estimate <= 2500) chunkSize = 250;
-			if (estimate <= 5000) chunkSize = 500;
-			if (estimate > 10000) chunkSize = 5000;
-			system = system.substring(0, system.length - chunkSize);
-
-			if (estimate > 2500 && system.length < 1000) {
-				if (history.length > 0) {
-					if (estimate > 2500 && history[history.length - 1].content.length < 500) {
-						prompt = prompt.substring(0, prompt.length - chunkSize);
-					}
-
-					history[history.length - 1].content = history[history.length - 1].content.substring(0, history[history.length - 1].content.length - chunkSize);
-				} else {
-					prompt = prompt.substring(0, prompt.length - chunkSize);
-				}
+		while (currentTokens > targetTokens) {
+			if (history.length > 1) {
+				// Remove the oldest message from history
+				history.shift();
+			} else if (system.length > 50) {
+				// Trim the system message
+				system = system.slice(0, -50);
+			} else if (prompt.length > 50) {
+				// Trim the prompt as a last resort
+				prompt = prompt.slice(0, -50);
+			} else {
+				break; // Can't reduce further
 			}
-			estimate = promptTokensEstimate({
-				messages: [
-					{ 'role': 'system', 'content': system || 'You are a helpful assistant.' },
-					...history,
-					{
-						'role': 'user',
-						'content': prompt || 'Hello',
-					},
-				],
-			});
+
+			currentTokens = this.estimateTokens([
+				{role: 'system', content: system},
+				...history,
+				{role: 'user', content: prompt}
+			]);
+
 		}
 
-		system = JSON.stringify(system);
-		prompt = JSON.stringify(prompt);
+		return {system, history, prompt};
+	}
 
-		for (let i = 0; i < history.length; i++) {
-			history[i].content = JSON.stringify(history[i].content);
-		}
-
-		return { system, history, prompt };
+	static estimateTokens(messages) {
+		return promptTokensEstimate({messages});
 	}
 
 	/**
@@ -281,14 +226,13 @@ class AIService {
 				size: buffer.length,
 			};
 
-			// upload to CDN
-			const attachment = await AttachmentService.createAttachment(file, {
-				acl: 'public-read',
-				mimeType: 'image/png',
-				extension: 'png',
-			});
 
-			return attachment.data.Location;
+			// upload to CDN
+			return await AttachmentService.createAttachment(file, {
+				acl: 'public-read',
+				mimeType: 'audio/mpeg',
+				extension: 'mp3',
+			});
 		} catch (e) {
 			console.error('Error generating image:', e);
 			throw new Error('Error generating image: ' + e.message);
@@ -395,8 +339,6 @@ class AIService {
 	 * @throws {Error} - Throws an error if there is an issue processing the request.
 	 */
 	static async solveAction(data = {}) {
-
-		console.log('Data', data);
 
 		const tools = [
 			{
@@ -579,7 +521,6 @@ class AIService {
 		};
 
 		const response = await AIService.sendMessage(configData, 'openai');
-		console.log('Response', response.data);
 		const functions = [];
 
 		if (!!response.data.choices[0].message.tool_calls) {
