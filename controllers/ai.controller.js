@@ -4,6 +4,8 @@ import RIMService from '../services/rim.service.js';
 import ChatService from "../services/chat.service.js";
 import MessageService from "../services/message.service.js";
 import VariantService from "../services/variant.service.js";
+import ActionsService from "../services/actions.service.js";
+import RimService from "../services/rim.service.js";
 
 class AIController {
 
@@ -164,7 +166,10 @@ class AIController {
 			}
 
 			if (!uidMessageAssistant) {
-				return res.write(`data: ${JSON.stringify({type: 'error', message: 'No assistant message provided'})}\n\n`);
+				return res.write(`data: ${JSON.stringify({
+					type: 'error',
+					message: 'No assistant message provided'
+				})}\n\n`);
 			}
 			// Retrieve the chat
 			const chat = await ChatService.getByUid(uidChat);
@@ -173,17 +178,18 @@ class AIController {
 			}
 
 			// Save the user's message
-			await MessageService.saveMessage({
-				idChat: chat.id,
-				content: prompt,
-				uid: uidMessage,
-				idUser: user.id,
-				role: 'user',
-				messageType: 'text',
-			});
+			let history = await MessageService.getMessageHistory({uid: uidChat});			// Solve actions based on the prompt
 
-			// Solve actions based on the prompt
-			const actions = await AIService.solveAction({messages: [], prompt});
+			// just keep content and role
+			history = history.map((msg) => {
+				return {
+					content: msg.content,
+					role: msg.role
+				}
+			})
+
+			const actions = await AIService.solveAction({history, prompt});
+
 			res.write(`data: ${JSON.stringify({type: 'actionsSolved', actions})}\n\n`);
 
 			// Process actions
@@ -204,7 +210,8 @@ class AIController {
 				model: 'gpt-4',
 				system: actionRes.length ? actionRes[0].responseSystemPrompt : 'Answer the user in a funny sarcastic way',
 				prompt,
-				stream: true
+				stream: true,
+				history
 			};
 
 			// Send message to AI service
@@ -217,6 +224,30 @@ class AIController {
 			let buffer = '';
 
 			// Process the streamed response
+			const userMessage = await MessageService.saveMessage({
+				idChat: chat.id,
+				content: prompt,
+				uid: uidMessage,
+				idUser: user.id,
+				role: 'user',
+				messageType: 'text',
+			});
+
+			for (let [index, action] of actions.entries()) {
+				try {
+					await ActionsService.create({
+						idMessage: userMessage.id, // Asumiendo que uidMessage es el ID del mensaje
+						actionName: action.name,
+						actionArgs: action.args,
+						order: index + 1 // Usamos index + 1 para que el order comience en 1 en lugar de 0
+					});
+				} catch (error) {
+					console.error('Error saving action:', error);
+					// Decide si quieres manejar este error de alguna manera específica
+				}
+			}
+
+
 			response.data.on('data', (chunk) => {
 				buffer += chunk.toString();
 				let lines = buffer.split('\n');
@@ -254,7 +285,7 @@ class AIController {
 				}
 
 				// Save the complete final message
-				await MessageService.saveMessage({
+				const aiMessage = await MessageService.saveMessage({
 					idChat: chat.id,
 					content: fullMessage,
 					idUser: user.id,
@@ -262,7 +293,28 @@ class AIController {
 					role: 'assistant',
 					messageType: 'text',
 				});
+				for (let action of actionRes) {
+					try {
+						const rimData = {
+							idMessage: aiMessage.id, // Asumiendo que uidMessageAssistant es el ID del mensaje del asistente
+							jsonData: {
+								rimType: action.rimType,
+								responseSystemPrompt: action.responseSystemPrompt,
+								parameters: action.parameters
+							},
+							idUser: user.id,
+							type: action.rimType,
+							version: action.version || 1.0,
+							expired: action.expired,
+							interactionCount: action.interactionCount || 0,
+							status: action.status || 'active'
+						};
 
+						const createdRim = await RimService.create(rimData);
+					} catch (error) {
+						console.error('Error creating RIM:', error);
+					}
+				}
 				// Send the complete message to the client
 				res.write(`data: ${JSON.stringify({type: 'end', fullMessage})}\n\n`);
 				res.end();

@@ -84,10 +84,26 @@ model Message {
   user          User?     @relation(fields: [idUser], references: [id])
   chat          Chat      @relation(fields: [idChat], references: [id])
 
-  rims     Rim[]
-  variants Variant[]
+  rims         Rim[]
+  variants     Variant[]
+  ActionSolved ActionSolved[]
 
   @@map("message")
+}
+
+model ActionSolved {
+  id         Int      @id @default(autoincrement())
+  idMessage  Int      @map("id_message")
+  actionName String   @map("action_name")
+  actionArgs Json     @map("action_args")
+  order      Int      @default(0)
+  created    DateTime @default(now())
+  modified   DateTime @updatedAt
+
+  message Message @relation(fields: [idMessage], references: [id])
+
+  @@index([idMessage, order])
+  @@map("action_solved")
 }
 
 model Variant {
@@ -111,7 +127,7 @@ model Rim {
   id               Int       @id @default(autoincrement())
   idMessage        Int       @map("id_message")
   jsonData         Json      @map("json_data")
-  version          String?
+  version          Float     @default(1)
   idUser           Int?      @map("id_user")
   expired          DateTime?
   interactionCount Int       @default(0)

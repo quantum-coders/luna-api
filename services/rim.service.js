@@ -235,14 +235,55 @@ class RIMService {
 		}
 	}
 
+	/**
+	 * Creates a new Rim entry in the database.
+	 *
+	 * @param {Object} data - The data for creating a new Rim.
+	 * @param {number} data.idMessage - The ID of the associated message (required).
+	 * @param {Object} data.jsonData - The JSON data for the Rim (required).
+	 * @param {string} [data.version] - The version of the Rim.
+	 * @param {number} [data.idUser] - The ID of the associated user.
+	 * @param {Date} [data.expired] - The expiration date of the Rim.
+	 * @param {number} [data.interactionCount] - The interaction count of the Rim.
+	 * @param {string} [data.type] - The type of the Rim.
+	 * @param {string} [data.status='active'] - The status of the Rim.
+	 * @returns {Promise<Object>} The created Rim object.
+	 * @throws {Error} If required fields are missing or if there's a database error.
+	 */
 	static async create(data) {
+		// Destructure and validate required fields
 		const {idMessage, jsonData, version, idUser, expired, interactionCount, type, status} = data;
-		if (!idMessage || !jsonData) {
-			throw new Error(`Missing required field: ${!idMessage ? 'idMessage' : 'jsonData'}`);
+
+		if (!idMessage) {
+			throw new Error('Missing required field: idMessage');
 		}
-		return prisma.rim.create({
-			data,
-		});
+		if (!jsonData || typeof jsonData !== 'object') {
+			throw new Error('Invalid or missing required field: jsonData');
+		}
+
+		// Prepare the data object, including only valid fields
+		const rimData = {
+			idMessage: idMessage,
+			jsonData: jsonData,
+			version,
+			idUser: idUser,
+			expired,
+			interactionCount: interactionCount ?? 0, // Use default if not provided
+			type,
+			status: status ?? 'active', // Use default if not provided
+		};
+
+		// Remove undefined fields
+		Object.keys(rimData).forEach(key => rimData[key] === undefined && delete rimData[key]);
+		console.info("rimData", rimData);
+		try {
+			return await prisma.rim.create({
+				data: rimData,
+			});
+		} catch (error) {
+			console.error('Error creating Rim:', error);
+			throw new Error('Failed to create Rim entry');
+		}
 	}
 }
 

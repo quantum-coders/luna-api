@@ -32,8 +32,8 @@ class AIService {
 			frequency_penalty = 0.0001,
 			presence_penalty = 0,
 			stop = '',
-			tools,
-			tool_choice,
+			tools = [],
+			toolChoice,
 		} = data;
 
 		if (!model || !prompt) {
@@ -44,8 +44,12 @@ class AIService {
 			const modelInfo = this.solveModelInfo(model);
 			provider = modelInfo.provider;
 			const contextWindow = modelInfo.contextWindow;
-
-			const adjustedContent = this.adjustContent(system, history, prompt, contextWindow);
+			console.warn("System:", system);
+			console.warn("History:", history);
+			console.warn("Prompt:", prompt);
+			console.warn("Context Window:", contextWindow);
+			let reservedTokens = tools.length > 0 ? 377 : 0;
+			const adjustedContent = this.adjustContent(system, history, prompt, contextWindow, reservedTokens);
 			system = adjustedContent.system;
 			history = adjustedContent.history;
 			prompt = adjustedContent.prompt;
@@ -56,20 +60,22 @@ class AIService {
 				{role: 'user', content: prompt},
 			];
 
+			let maxTokensCalculation = contextWindow - this.estimateTokens(messages) - reservedTokens;
+
 			const requestData = {
 				model,
 				messages,
 				temperature,
-				max_tokens: max_tokens || (contextWindow - this.estimateTokens(messages)),
+				max_tokens: max_tokens || maxTokensCalculation,
 				top_p,
 				frequency_penalty,
 				presence_penalty,
 				stream,
 			};
 
-			if (tools && tool_choice && provider === 'openai' && !stream) {
+			if (tools  && provider === 'openai' && !stream) {
 				requestData.tools = tools;
-				requestData.tool_choice = tool_choice;
+				requestData.tool_choice = toolChoice;
 			}
 
 			if (stop) requestData.stop = stop;
@@ -82,7 +88,6 @@ class AIService {
 
 			const axiosConfig = {headers};
 			if (stream) axiosConfig.responseType = 'stream';
-
 			return await axios.post(url, requestData, axiosConfig);
 		} catch (error) {
 			console.error('Error:', error);
@@ -159,6 +164,8 @@ class AIService {
 	 * @param {string} system - The system message to be used.
 	 * @param {Array<Object>} history - The conversation history.
 	 * @param {string} prompt - The user prompt.
+	 * @param contextWindow
+	 * @param reservedTokens
 	 * @returns {Object} - An object containing the adjusted system message and history.
 	 * @throws {Error} - Throws an error if there is an issue with the adjustment.
 	 */
@@ -504,15 +511,9 @@ class AIService {
 		];
 
 		const configData = {
-			messages: [
-				{
-					role: 'system',
-					content: [{
-						type: 'text',
-						text: `You are an AI assistant that solves the best function to be performed based on user input.`,
-					}],
-				},
-				...data.messages,
+			system: 'You are an AI assistant that solves the best function to be performed based on user input.',
+			history: [
+				...data.history,
 			],
 			prompt: data.prompt,
 			tools,

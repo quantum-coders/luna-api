@@ -20,35 +20,61 @@ class MessageService {
 		if (!idChat) {
 			throw new Error("El campo 'idChat' es obligatorio.");
 		}
-		if (limit < 1 || limit > 100) {
-			throw new Error("El 'limit' debe estar entre 1 y 100.");
+		if (limit !== -1 && (limit < 1 || limit > 100)) {
+			throw new Error("El 'limit' debe estar entre 1 y 100, o ser -1 para obtener todos los mensajes.");
 		}
 		if (offset < 0) {
 			throw new Error("El 'offset' no puede ser negativo.");
 		}
 
-		const [messages, total] = await Promise.all([
-			prisma.message.findMany({
-				where: {
-					idChat,
-				},
-				orderBy: {
-					created: 'asc',
-				},
-				take: limit,
-				skip: offset,
-				include: {
-					variants: true, // This will include variants for messages that have them
-				},
-			}),
-			prisma.message.count({
-				where: {
-					idChat,
-				},
-			}),
-		]);
+		let messages, total;
 
-		// print all mesasges
+		if (limit === -1) {
+			// Obtener todos los mensajes sin limitación
+			[messages, total] = await Promise.all([
+				prisma.message.findMany({
+					where: {
+						idChat,
+					},
+					orderBy: {
+						created: 'asc',
+					},
+					include: {
+						variants: true, // Esto incluirá variantes para los mensajes que las tengan
+						rims: true,
+					},
+				}),
+				prisma.message.count({
+					where: {
+						idChat,
+					},
+				}),
+			]);
+		} else {
+			// Obtener mensajes con limit y offset
+			[messages, total] = await Promise.all([
+				prisma.message.findMany({
+					where: {
+						idChat,
+					},
+					orderBy: {
+						created: 'asc',
+					},
+					take: limit,
+					skip: offset,
+					include: {
+						variants: true, // Esto incluirá variantes para los mensajes que las tengan
+						rims: true,
+					},
+				}),
+				prisma.message.count({
+					where: {
+						idChat,
+					},
+				}),
+			]);
+		}
+
 		// Calcular si hay una página siguiente
 		const hasNextPage = offset + limit < total;
 
@@ -56,12 +82,13 @@ class MessageService {
 			messages,
 			pagination: {
 				total,
-				limit,
+				limit: limit === -1 ? total : limit,
 				offset,
-				hasNextPage,
+				hasNextPage: limit === -1 ? false : hasNextPage,
 			},
 		};
 	}
+
 
 	/**
 	 * Retrieves the latest message sent by a user in a specific chat.
@@ -104,53 +131,39 @@ class MessageService {
 		});
 	}
 
-	// create a function to update a message using its uid
-	// create a function to delete a message using its uid
-
-	static async updateMessageByUid(uid, data) {
-		return prisma.message.update({
-			where: {
-				uid,
-			},
-			data,
-		});
-	}
-
 	/**
-	 * Creates a new variant for a message.
+	 * Retrieves the message history for a specific chat.
 	 *
-	 * @param {string} messageUid - The UID of the message.
-	 * @param {Object} variantData - The data for the new variant.
-	 * @param {string} variantData.type - The type of the variant (e.g., "audio", "image").
-	 * @param {string} [variantData.url] - The URL of the variant content (if applicable).
-	 * @param {Object} [variantData.data] - Additional data for the variant (as JSON).
-	 * @param {string} [variantData.mimeType] - The MIME type of the variant content.
-	 * @param {number} [variantData.size] - The size of the variant content in bytes.
-	 * @param {Object} [variantData.metadata] - Additional metadata for the variant (as JSON).
-	 * @returns {Promise<Object>} - A promise that resolves to the created variant object.
-	 * @throws {Error} - If the message with the given UID is not found or if required fields are missing.
+	 * @param {Object} data - The data for retrieving the message history.
+	 * @param {number} data.idChat - The ID of the chat.
+	 * @param {number} [data.limit=10] - The maximum number of messages to retrieve. Defaults to 10.
+	 * @param {number} [data.offset=0] - The number of messages to skip. Defaults to 0.
+	 * @returns {Promise<Array>} - A promise that resolves to an array of message objects.
 	 */
-	static async createVariant(messageUid, variantData) {
-		// Validate required fields
-		if (!messageUid || !variantData.type) {
-			throw new Error("messageUid and variantData.type are required.");
+	static async getMessageHistory(data) {
+		const {uid, limit = 10, offset = 0} = data;
+
+		if (!uid) {
+			throw new Error("No chat UID available in the route.");
+		}
+		if (limit < 1) {
+			throw new Error("Limit must be greater than 0.");
+		}
+		if (offset < 0) {
+			throw new Error("Offset must be greater than or equal to 0.");
 		}
 
-		// Find the message by UID
-		const message = await prisma.message.findUnique({
-			where: {uid: messageUid}
-		});
-
-		if (!message) {
-			throw new Error(`Message with UID ${messageUid} not found.`);
-		}
-
-		// Create the variant
-		return prisma.variant.create({
-			data: {
-				...variantData,
-				message: {connect: {id: message.id}}
-			}
+		return prisma.message.findMany({
+			where: {
+				chat: {
+					uid,
+				},
+			},
+			orderBy: {
+				created: 'asc',
+			},
+			take: limit,
+			skip: offset,
 		});
 	}
 

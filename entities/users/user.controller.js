@@ -493,6 +493,7 @@ class UserController extends PrimateController {
 				offset,
 			});
 
+
 			const messages = paginatedMessages.messages.map(message => {
 				return {
 					role: message.role,
@@ -500,6 +501,8 @@ class UserController extends PrimateController {
 					timestamp: message.created,
 					uid: message.uid,
 					variants: message.variants,
+					// take just the json data of each rim
+					rims: message.rims.map(rim => rim.jsonData),
 					audioLoading: false,
 				}
 			});
@@ -518,6 +521,52 @@ class UserController extends PrimateController {
 		}
 	}
 
+
+	/**
+	 * Retrieves paginated chats for the authenticated user.
+	 * @param {Object} req - The request object.
+	 * @param {Object} res - The response object.
+	 * @param {Function} next - The next middleware function.
+	 * @returns {Promise<void>}
+	 */
+	static async getUserChats(req, res, next) {
+		try {
+			const user = req.user.payload;
+
+			if (!user || !user.id) {
+				return res.respond({
+					status: 401,
+					message: 'Unauthorized: User not authenticated',
+				});
+			}
+
+			const {
+				type,
+				page = 1,
+				pageSize = 10,
+				orderBy = 'created',
+				orderDirection = 'desc'
+			} = req.query;
+
+			const result = await ChatService.getUserChats({
+				userId: user.id,
+				type,
+				page: parseInt(page, 10),
+				pageSize: parseInt(pageSize, 10),
+				orderBy,
+				orderDirection
+			});
+
+			res.respond({
+				data: result.chats,
+				metadata: result.metadata,
+				message: 'Chats retrieved successfully',
+			});
+		} catch (error) {
+			console.error('Error in getUserChats:', error);
+			next(createError(500, 'An error occurred while retrieving user chats'));
+		}
+	}
 }
 
 export default UserController;

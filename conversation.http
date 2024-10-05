@@ -1,10 +1,10 @@
 ### Enviar un mensaje a RIM
 POST http://localhost:1337/ai/message/rim
-Authorization:
+Authorization: Bearer
 Content-Type: application/json
 
 {
-  "prompt": "Hola",
+  "prompt": "balance de mi wallet porfa",
   "properties": {
   }
 }

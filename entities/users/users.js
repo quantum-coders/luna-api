@@ -38,6 +38,7 @@ router.get('/me/chat/:id', auth, UserController.getChat)
 
 router.get('/me/chat/:uid/history', auth, UserController.getChatHistory);
 
+router.get('/me/chats', auth, UserController.getUserChats);
 // ---------------------------------------------------------------------------------------------------------------------
 
 setupRoute('user', router, options);

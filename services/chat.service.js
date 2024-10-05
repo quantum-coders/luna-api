@@ -65,7 +65,7 @@ class ChatService {
 		}
 	}
 
-	static async getByUid(uid){
+	static async getByUid(uid) {
 		try {
 			return await prisma.chat.findUnique({
 				where: {
@@ -86,6 +86,84 @@ class ChatService {
 			console.error(e);
 		}
 	}
+
+	/**
+	 * Retrieves paginated chats for a specific user, optionally filtered by chat type.
+	 * @param {Object} params - The parameters for fetching chats.
+	 * @param {number} params.userId - The ID of the user whose chats to retrieve.
+	 * @param {string} [params.type] - The type of chats to retrieve (optional).
+	 * @param {number} [params.page=1] - The page number to retrieve (default: 1).
+	 * @param {number} [params.pageSize=10] - The number of chats per page (default: 10).
+	 * @param {string} [params.orderBy='created'] - The field to order the results by (default: 'created').
+	 * @param {string} [params.orderDirection='desc'] - The direction to order the results (default: 'desc').
+	 * @returns {Promise<Object>} An object containing the paginated chats and metadata.
+	 */
+	static async getUserChats({
+		                          userId,
+		                          type,
+		                          page = 1,
+		                          pageSize = 10,
+		                          orderBy = 'created',
+		                          orderDirection = 'desc'
+	                          }) {
+		try {
+			const skip = (page - 1) * pageSize;
+			const where = {idUser: userId};
+
+			if (type) {
+				where.type = type;
+			}
+
+			const [chats, totalCount] = await Promise.all([
+				prisma.chat.findMany({
+					where,
+					skip,
+					take: pageSize,
+					orderBy: {[orderBy]: orderDirection},
+					include: {
+						user: {
+							select: {
+								id: true,
+								username: true,
+								firstname: true,
+								lastname: true
+							}
+						},
+						messages: {
+							take: 1,
+							orderBy: {created: 'desc'},
+							select: {
+								content: true,
+								created: true
+							}
+						}
+					}
+				}),
+				prisma.chat.count({where})
+			]);
+
+			const totalPages = Math.ceil(totalCount / pageSize);
+
+			return {
+				chats: chats.map(chat => ({
+					...chat,
+					lastMessage: chat.messages[0] || null
+				})),
+				metadata: {
+					currentPage: page,
+					pageSize,
+					totalCount,
+					totalPages,
+					hasNextPage: page < totalPages,
+					hasPreviousPage: page > 1
+				}
+			};
+		} catch (error) {
+			console.error('Error fetching user chats:', error);
+			throw new Error('Failed to fetch user chats');
+		}
+	}
+
 }
 
 export default ChatService;
