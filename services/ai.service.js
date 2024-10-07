@@ -342,12 +342,13 @@ class AIService {
 	 * Determines the best action to perform based on the provided data.
 	 *
 	 * @param {Object} data - The data containing the prompt and messages.
+	 * @param toolsOverride
 	 * @returns {Promise<Array<Object>>} - A promise that resolves to an array of functions with their arguments.
 	 * @throws {Error} - Throws an error if there is an issue processing the request.
 	 */
-	static async solveAction(data = {}) {
+	static async solveAction(data = {}, toolsOverride = []) {
 
-		const tools = [
+		let tools = [
 			{
 				type: 'function',
 				function: {
@@ -509,6 +510,10 @@ class AIService {
 				},
 			},
 		];
+
+		if (toolsOverride.length > 0) {
+			tools = toolsOverride;
+		}
 
 		const configData = {
 			system: 'You are an AI assistant that solves the best function to be performed based on user input.',

@@ -204,3 +204,25 @@ model Session {
 
   @@map("session")
 }
+
+model Token {
+  id                Int       @id @default(autoincrement())
+  uid               String    @unique @default(cuid())
+  address           String    @unique
+  name              String?
+  symbol            String?
+  decimals          Int?
+  logoURI           String?
+  tags              String?   @default("[]")
+  dailyVolume       Float?    @map("daily_volume")
+  freezeAuthority   String?   @map("freeze_authority")
+  mintAuthority     String?   @map("mint_authority")
+  permanentDelegate String?   @map("permanent_delegate")
+  mintedAt          DateTime? @map("minted_at")
+  coingeckoId       String?   @map("coingecko_id")
+  metas             Json      @default("{}")
+  created           DateTime  @default(now())
+  modified          DateTime  @updatedAt
+
+  @@map("tokens")
+}
