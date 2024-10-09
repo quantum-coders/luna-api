@@ -2,6 +2,7 @@ import AIService from './ai.service.js';
 import SolanaService from './solana.service.js';
 import YoutubeService from './youtube.service.js';
 import {prisma} from "@thewebchimp/primate";
+import {JupiterService} from "./jupiter.service.js";
 
 const systemPromptString = `You are Luna AI, a Crypto Solana AI Assistant. Answer the user in a funny enthusiastic way.`;
 
@@ -285,6 +286,24 @@ class RIMService {
 			throw new Error('Failed to create Rim entry');
 		}
 	}
+
+	static async createLimitOrder(args) {
+		return {
+			rimType: 'blink',
+			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
+			parameters: {
+				blinkUrl: `${process.env.BASE_URL}/blinks/create-limit-order?inputMint={inputMint}&outputMint={outputMint}&inAmount={inAmount}&outAmount={outAmount}&expiredAt={expiredAt}`,
+				blinkParameters: {
+					inputMint: args.inputMint,
+					outputMint: args.outputMint,
+					inAmount: args.inAmount,
+					outAmount: args.outAmount,
+					expiredAt: args.expiredAt,
+				},
+			},
+		};
+	}
+
 }
 
 export default RIMService;

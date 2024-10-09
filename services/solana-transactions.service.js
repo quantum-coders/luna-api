@@ -130,7 +130,7 @@ class SolanaTransactionBuilder {
 
 	/**
 	 * Builds a swap transaction using the Jupiter API.
-	 * @param {string} publicKey - The public key of the user initiating the swap.
+	 * @param {PublicKey} publicKey - The public key of the user initiating the swap.
 	 * @param {string} inputMint - The mint address of the input token.
 	 * @param {string} outputMint - The mint address of the output token.
 	 * @param {number} amount - The amount of input tokens to swap.
@@ -139,7 +139,12 @@ class SolanaTransactionBuilder {
 	 * @returns {Promise<string>} - The swap transaction serialized in base64 format.
 	 * @throws {Error} - If the input or output mint is invalid, or if the slippage exceeds 10%.
 	 */
-	async buildSwapTransaction(publicKey, inputMint, outputMint, amount, slippageBps = 0.5, destinationWallet = null) {
+	async buildSwapTransaction(publicKey,
+	                           inputMint,
+	                           outputMint,
+	                           amount,
+	                           slippageBps = 0.5,
+	                           destinationWallet = null) {
 		const inputMintData = await getMint(this.connection, new PublicKey(inputMint));
 		const outputMintData = await getMint(this.connection, new PublicKey(outputMint));
 		if (!inputMintData || !outputMintData) {
@@ -154,16 +159,16 @@ class SolanaTransactionBuilder {
 		const inputDecimals = inputMintData.decimals;
 		const inputAmount = amount * Math.pow(10, inputDecimals);
 		const slippagePercentage = slippageBps * 100;
-
+		console.info("slippagePercentage", slippagePercentage);
 		const walletPublicKey = new PublicKey(publicKey);
-		let urlGet = `${process.env.JUPITER_QUOTE_API_URL}`;
+		let urlGet = `${process.env.JUPITER_SWAP_QUOTE_API_URL}`;
 		urlGet += `?inputMint=${inputMint}&outputMint=${outputMint}`;
 		urlGet += `&amount=${inputAmount}&slippageBps=${slippagePercentage}`;
 		urlGet += `&swapMode=ExactIn`;
 
 		const quoteResponseData = await fetch(urlGet);
 		const quoteResponse = await quoteResponseData.json();
-
+		console.info('quoteResponse', quoteResponse);
 		const response = await fetch(`${process.env.JUPITER_SWAP_API_URL}`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -175,6 +180,7 @@ class SolanaTransactionBuilder {
 				wrapAndUnwrapSol: true,
 			}),
 		});
+		console.info('response', response);
 		const jsonResponse = await response.json();
 
 		if (jsonResponse?.error || !jsonResponse?.swapTransaction) {

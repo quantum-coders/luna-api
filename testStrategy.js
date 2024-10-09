@@ -83,7 +83,7 @@ async function main() {
 
 		// Fetch tokens from the database (limit to 50 tokens)
 		const tokensFromDb = await prisma.token.findMany({
-			take: 5,
+			take: 1,
 		});
 		for (const token of tokensFromDb) {
 			console.info("Body", {
@@ -426,23 +426,6 @@ const strategyObject = {
   description: strategyConfig.description, // Descripción de la estrategia con certeza
   strategyType: "trading", // Tipo de estrategia definido
   dataSources: ["DappRadar API", "Jupiter DEX API"], // Fuentes de datos con certeza
-  tokenInfo: [
-    {
-      name: token.name, // Nombre del token con certeza
-      symbol: token.symbol, // Símbolo del token con certeza
-      decimals: token.decimals, // Decimales del token con certeza
-      address: token.address, // Dirección del token con certeza
-      tokenMetrics: analysis, // Métricas del token derivadas del análisis técnico real
-    },
-  ],
-  metas: {
-    // Datos derivados de un análisis real del mercado
-    marketTrends: analysis.volatility > 0.7 ? "High volatility detected" : "Moderate volatility detected", // Análisis basado en datos ciertos de volatilidad
-    tradingParameters: {
-      maxSpread: 0.5, // Parámetro fijado con certeza
-      transactionFeeThreshold: 0.1, // Parámetro fijado con certeza
-    },
-  },
   aiGeneratedSummary: `Based on the analysis, the AI predicts a ${analysis.trend} trend for ${token.name} with a ${analysis.prediction_next_day > analysis.current_price ? "bullish" : "bearish"} outlook for the next day.`, // Resumen generado por IA basado en el análisis técnico
   potentialRewards: analysis.prediction_next_day * 1.05,  // Recompensa simulada con un margen basado en análisis
   riskLevel: analysis.volatility > 0.7 ? "alto" : "medio", // Nivel de riesgo basado en el análisis de volatilidad
@@ -451,6 +434,11 @@ const strategyObject = {
     {
       stepOrder: 1,
       description: "Monitor price movements and volatility patterns using automated scripts.", // Paso claro basado en la estrategia
+      state: 'Not Started',
+      tokenInput: { token: token.name, address: token.address },
+      tokenOutput: { token: token.name, address: token.address },
+      orderType: 'Swap', // this could be Swap or Limit Order or DCA Transaction
+      /// if limit define expration date...et
     },
     {
       stepOrder: 2,

@@ -48,7 +48,7 @@ class AIService {
 			console.warn("History:", history);
 			console.warn("Prompt:", prompt);
 			console.warn("Context Window:", contextWindow);
-			let reservedTokens = tools.length > 0 ? 377 : 0;
+			let reservedTokens = tools.length * 150
 			const adjustedContent = this.adjustContent(system, history, prompt, contextWindow, reservedTokens);
 			system = adjustedContent.system;
 			history = adjustedContent.history;
@@ -73,7 +73,7 @@ class AIService {
 				stream,
 			};
 
-			if (tools  && provider === 'openai' && !stream) {
+			if (tools && provider === 'openai' && !stream) {
 				requestData.tools = tools;
 				requestData.tool_choice = toolChoice;
 			}
@@ -90,7 +90,13 @@ class AIService {
 			if (stream) axiosConfig.responseType = 'stream';
 			return await axios.post(url, requestData, axiosConfig);
 		} catch (error) {
-			console.error('Error:', error);
+			if (error.response && error.response.data) {
+				// Imprime el error de respuesta de manera detallada
+				console.error('Error Response:', JSON.stringify(error.response.data, null, 2));
+			} else {
+				// Imprime otros errores
+				console.error('Error:', error.message);
+			}
 			throw new Error('Error processing the request: ' + error.message);
 		}
 	}
@@ -158,17 +164,6 @@ class AIService {
 		return url;
 	}
 
-	/**
-	 * Adjusts the history and system message for the AI model.
-	 *
-	 * @param {string} system - The system message to be used.
-	 * @param {Array<Object>} history - The conversation history.
-	 * @param {string} prompt - The user prompt.
-	 * @param contextWindow
-	 * @param reservedTokens
-	 * @returns {Object} - An object containing the adjusted system message and history.
-	 * @throws {Error} - Throws an error if there is an issue with the adjustment.
-	 */
 	static adjustContent(system, history, prompt, contextWindow, reservedTokens = 100) {
 		const targetTokens = contextWindow - reservedTokens;
 		let currentTokens = this.estimateTokens([
@@ -177,27 +172,58 @@ class AIService {
 			{role: 'user', content: prompt}
 		]);
 
+		console.info(`Starting adjustContent: currentTokens=${currentTokens}, targetTokens=${targetTokens}`);
+
+		let iteration = 0;
+		const maxIterations = 100; // Establecemos un máximo de iteraciones para evitar bucles infinitos
+
 		while (currentTokens > targetTokens) {
+			iteration++;
+			if (iteration > maxIterations) {
+				console.error('adjustContent: Max iterations reached, exiting loop to prevent infinite loop.');
+				break;
+			}
+
+			const tokensOver = currentTokens - targetTokens;
+			console.info(`Iteration ${iteration}: currentTokens=${currentTokens}, tokensOver=${tokensOver}, history length=${history.length}, system length=${system.length}, prompt length=${prompt.length}`);
+
+			// Calculamos el chunkSize dinámicamente
+			let chunkSize = Math.ceil(tokensOver * 0.5); // Tomamos el 50% de los tokens sobrantes como chunkSize
+
+			// Convertimos chunkSize a número de caracteres aproximado (asumiendo que un token es aproximadamente 4 caracteres)
+			const approxCharsPerToken = 4;
+			const charsToRemove = chunkSize * approxCharsPerToken;
+
 			if (history.length > 1) {
 				// Remove the oldest message from history
-				history.shift();
+				const removedMessage = history.shift();
+				console.info(`Removed oldest message from history: ${JSON.stringify(removedMessage)}`);
 			} else if (system.length > 50) {
 				// Trim the system message
-				system = system.slice(0, -50);
+				const trimLength = Math.min(charsToRemove, system.length - 50);
+				console.info(`Trimming system message by ${trimLength} characters.`);
+				system = system.slice(0, -trimLength);
 			} else if (prompt.length > 50) {
 				// Trim the prompt as a last resort
-				prompt = prompt.slice(0, -50);
+				const trimLength = Math.min(charsToRemove, prompt.length - 50);
+				console.info(`Trimming prompt by ${trimLength} characters.`);
+				prompt = prompt.slice(0, -trimLength);
 			} else {
+				console.info('Cannot reduce content further, breaking the loop.');
 				break; // Can't reduce further
 			}
 
+			// Recalculamos los tokens actuales después de los ajustes
 			currentTokens = this.estimateTokens([
 				{role: 'system', content: system},
 				...history,
 				{role: 'user', content: prompt}
 			]);
 
+			console.info(`After adjustment: currentTokens=${currentTokens}`);
 		}
+
+		console.info(`Finished adjustContent: currentTokens=${currentTokens}, targetTokens=${targetTokens}`);
 
 		return {system, history, prompt};
 	}
@@ -509,7 +535,39 @@ class AIService {
 					},
 				},
 			},
-		];
+			{
+				type: 'function',
+				function: {
+					name: 'createLimitOrder',
+					description: 'Creates a limit order to buy or sell a token.',
+					parameters: {
+						type: 'object',
+						properties: {
+							inputMint: {
+								type: 'string',
+								description: 'The mint address of the input token.',
+							},
+							outputMint: {
+								type: 'string',
+								description: 'The mint address of the output token.',
+							},
+							inAmount: {
+								type: 'string',
+								description: 'The input token amount for the order.',
+							},
+							outAmount: {
+								type: 'string',
+								description: 'The output token amount for the order.',
+							},
+							expiredAt: {
+								type: 'number',
+								description: 'The expiration timestamp (optional).',
+							},
+						},
+					},
+				},
+			}
+		]
 
 		if (toolsOverride.length > 0) {
 			tools = toolsOverride;

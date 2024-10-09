@@ -198,6 +198,7 @@ class AIController {
 				if (act.name === 'answerMessage') continue;
 				act.args.properties = properties;
 				try {
+					/// console log name and args
 					const ar = await RIMService[act.name](act.args);
 					actionRes.push(ar);
 				} catch (e) {

@@ -1,3 +1,6 @@
+import {prisma} from "@thewebchimp/primate";
+import {JupiterService} from "./jupiter.service.js";
+
 /**
  * A service class for fetching token data from the Jup API.
  */
@@ -26,6 +29,23 @@ class TokensService {
 			return await tokens.json();
 		} catch (error) {
 			throw new Error(error.message);
+		}
+	}
+
+
+	static async getTokenFromDatabase(address = null) {
+		try{
+			if(address) {
+				return await prisma.token.findUnique({
+					where: {
+						address: address
+					}
+				});
+			}else{
+				return await prisma.token.findMany();
+			}
+		}catch (e) {
+			throw new Error(e.message);
 		}
 	}
 
@@ -68,6 +88,18 @@ class TokensService {
 				},
 			});
 			console.info(`Upserted token ${newToken.name} (${newToken.symbol})`);
+		}
+	}
+
+	static async getQuote(inputMint, outputMint) {
+		try {
+			if (!inputMint || !outputMint) {
+				throw new Error('Invalid input or output mint');
+			}
+			const res =  await JupiterService.queryPriceApi(`ids=${inputMint},${outputMint}`);
+			return res;
+		} catch(e){
+			throw new Error('Error :', e.message);
 		}
 	}
 }

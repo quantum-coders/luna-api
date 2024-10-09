@@ -6,6 +6,8 @@ import UserService from '../entities/users/user.service.js';
 import BlinkService from '../services/blink.service.js';
 import {PrimateService} from '@thewebchimp/primate';
 import MetaplexService from "../services/metaplex.service.js";
+import {JupiterService} from "../services/jupiter.service.js";
+import BN from "bn.js";
 
 class SolanaActionController {
 	static async handleAction(req, res) {
@@ -75,6 +77,10 @@ class SolanaActionController {
 				{
 					'pathPattern': '/blinks/create-nft-collection',
 					'apiPath': '/blinks/create-nft-collection',
+				},
+				{
+					'pathPatter': '/blinks/create-limit-order',
+					'apiPath': '/blinks/create-limit-order',
 				}
 
 			],
@@ -155,10 +161,13 @@ class SolanaActionController {
 			'/swap': SolanaActionController.handlePostSwap,
 			'/stake-bonk': SolanaActionController.handlePostBonkStake,
 			'/mint-nft': SolanaActionController.handlePostMintNFT,
+			'/create-limit-order': SolanaActionController.handleCreateLimitOrder,
+			// TODO: Refactor Nfts implementation
 			'/create-nft-collection': SolanaActionController.handlePostCreateNFTCollection,
 			'/create-candy-machine': SolanaActionController.handlePostCreateCandyMachine,
 			'/insert-items': SolanaActionController.handlePostInsertItems,
 			'/create-guard': SolanaActionController.handlePostCreateGuard,
+
 		};
 
 		const actionHandler = actionMapping[path];
@@ -419,9 +428,96 @@ class SolanaActionController {
 						},
 					],
 				},
+			},
+			'/create-limit-order': {
+				title: 'Create Limit Order',
+				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+				description: 'Create a limit order.',
+				links: {
+					actions: [
+						{
+							label: 'Create limit order',
+							href: '/blinks/create-limit-order?inputMint={inputMint}&outputMint={outputMint}&inAmount={inAmount}&outAmount={outAmount}&expiredAt={expiredAt}',
+							parameters: [
+								{
+									label: 'Input Mint',
+									name: 'inputMint',
+									required: true,
+								},
+								{
+									label: 'Output Mint',
+									name: 'outputMint',
+									required: true,
+								},
+								{
+									label: 'Input Amount',
+									name: 'inAmount',
+									required: true,
+								},
+								{
+									label: 'Output Amount',
+									name: 'outAmount',
+									required: true,
+								},
+								{
+									label: 'Expiration Timestamp',
+									name: 'expiredAt',
+									required: false,
+								},
+							],
+						},
+					],
+				},
 			}
 		};
 	}
+
+	static async handleCreateLimitOrder(req, res) {
+		const {account} = req.body;
+		const inputMint = req.query.inputMint;
+		const outputMint = req.query.outputMint;
+		const inAmount = req.query.inAmount;
+		const outAmount = req.query.outAmount;
+		let expiredAt = req.query.expiredAt;
+
+		if (!account || !inputMint || !outputMint || !inAmount || !outAmount) {
+			return res.respond({
+				status: 400,
+				message: `Bad Request: parameter missing: ${!account ? 'account' : !inputMint ? 'inputMint' : !outputMint ? 'outputMint' : !inAmount ? 'inAmount' : 'outAmount'}`,
+			});
+		}
+
+		console.info("expiredAt format: ", expiredAt);
+		// convert expiredAt to seconds
+		if (expiredAt) {
+			const expirationTimeInSeconds = new Date(expiredAt).getTime() / 1000;
+			expiredAt = new BN(Math.floor((new Date().valueOf() / 1000) + expirationTimeInSeconds));
+		}
+		console.info("expiredAt: ", expiredAt);
+		try {
+			const encodedTransaction = await JupiterService.createLimitOrder(
+				account,
+				inAmount,
+				outAmount,
+				inputMint,
+				outputMint,
+				expiredAt,
+			);
+			return res.respond({
+				status: 200,
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
+				message: 'Transaction created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error processing transaction: ' + error.message,
+			});
+		}
+	}
+
 	static async handlePostInsertItems(req, res) {
 		const {account} = req.body;
 		const candyMachine = req.query.candyMachine;
@@ -454,6 +550,7 @@ class SolanaActionController {
 			});
 		}
 	}
+
 	static async handlePostBonkStake(req, res) {
 		const {account} = req.body;
 		const amount = req.query.amount; // Assuming amount in BONK
@@ -510,6 +607,7 @@ class SolanaActionController {
 			});
 		}
 		try {
+			console.info(`Parameters are: ${account}, ${inputMint}, ${outputMint}, ${amount}, ${slippageBps}`);
 			const encodedTransaction = await SolanaTransactionBuilder.buildSwapTransaction(
 				new PublicKey(account),
 				inputMint,
@@ -659,7 +757,7 @@ class SolanaActionController {
 				props: {transaction: encodedTransaction},
 				message: 'Transaction created successfully',
 			});
-		}catch (error) {
+		} catch (error) {
 			console.error(error);
 			return res.respond({
 				status: 500,

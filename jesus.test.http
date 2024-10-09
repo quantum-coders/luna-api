@@ -72,3 +72,20 @@ Accept: application/json
 # Test getting the actions JSON root
 GET http://localhost:1337/actions.json
 Accept: application/json
+
+
+###
+# Test the quotes endpoint
+GET http://localhost:1337/tokens/quotes?inputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+Accept: application/json
+
+###
+# Test create limit order
+POST http://localhost:1337/blinks/create-limit-order?inputMint=So11111111111111111111111111111111111111112&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&inAmount=1&outAmount=200&expiredAt=2024-10-16T00:32
+Content-Type: application/json
+
+{
+    "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+}
+
+
