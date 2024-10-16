@@ -602,6 +602,15 @@ class AIService {
 						},
 					},
 				},
+			},
+			{
+				type: 'function',
+				function:{
+					name: 'createAnalysisRequest',
+					description: 'Creates a new AnalysisRequest to identify opportunities in the market for investment.',
+					parameters: {
+					},
+				}
 			}
 		]
 

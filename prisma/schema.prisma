@@ -40,15 +40,16 @@ model User {
   created   DateTime @default(now())
   modified  DateTime @default(now())
 
-  messages       Message[]
-  chats          Chat[]
-  rims           Rim[]
-  wallets        Wallet[]
-  linkedAccounts LinkedAccount[]
-  blinks         Blink[]
-  sessions       Session[]
-  AnalysisReport AnalysisReport[]
-  ActionPlan     ActionPlan[]
+  messages        Message[]
+  chats           Chat[]
+  rims            Rim[]
+  wallets         Wallet[]
+  linkedAccounts  LinkedAccount[]
+  blinks          Blink[]
+  sessions        Session[]
+  AnalysisReport  AnalysisReport[]
+  ActionPlan      ActionPlan[]
+  AnalysisRequest AnalysisRequest[]
 
   @@map("user")
 }
@@ -86,11 +87,12 @@ model Message {
   user          User?     @relation(fields: [idUser], references: [id])
   chat          Chat      @relation(fields: [idChat], references: [id])
 
-  rims           Rim[]
-  variants       Variant[]
-  ActionSolved   ActionSolved[]
-  AnalysisReport AnalysisReport[]
-  ActionPlan     ActionPlan[]
+  rims            Rim[]
+  variants        Variant[]
+  ActionSolved    ActionSolved[]
+  AnalysisReport  AnalysisReport[]
+  ActionPlan      ActionPlan[]
+  AnalysisRequest AnalysisRequest[]
 
   @@map("message")
 }
@@ -210,25 +212,28 @@ model Session {
 }
 
 model Token {
-  id                Int              @id @default(autoincrement())
-  uid               String           @unique @default(cuid())
-  address           String           @unique
+  id                Int       @id @default(autoincrement())
+  uid               String    @unique @default(cuid())
+  address           String    @unique
   name              String?
   symbol            String?
   decimals          Int?
   logoURI           String?
-  tags              String?          @default("[]")
-  dailyVolume       Float?           @map("daily_volume")
-  freezeAuthority   String?          @map("freeze_authority")
-  mintAuthority     String?          @map("mint_authority")
-  permanentDelegate String?          @map("permanent_delegate")
-  mintedAt          DateTime?        @map("minted_at")
-  coingeckoId       String?          @map("coingecko_id")
-  metas             Json             @default("{}")
-  created           DateTime         @default(now())
-  modified          DateTime         @updatedAt
-  AnalysisReport    AnalysisReport[]
-  ActionPlan        ActionPlan[]
+  tags              String?   @default("[]")
+  dailyVolume       Float?    @map("daily_volume")
+  freezeAuthority   String?   @map("freeze_authority")
+  mintAuthority     String?   @map("mint_authority")
+  permanentDelegate String?   @map("permanent_delegate")
+  mintedAt          DateTime? @map("minted_at")
+  coingeckoId       String?   @map("coingecko_id")
+  metas             Json      @default("{}")
+  created           DateTime  @default(now())
+  modified          DateTime  @updatedAt
+
+  // Relationships
+  AnalysisReport   AnalysisReport[]
+  ActionPlan       ActionPlan[]
+  analysisRequests AnalysisRequest[] @relation("TokensOnAnalysisRequests")
 
   @@map("tokens")
 }
@@ -275,13 +280,15 @@ model AnalysisReport {
   modified            DateTime @default(now())
 
   // Relationships
-  token            Token                     @relation(fields: [idToken], references: [id])
-  user             User                      @relation(fields: [idUser], references: [id])
-  message          Message                   @relation(fields: [idMessage], references: [id])
-  indicators       AnalysisIndicator[]
-  predictions      AnalysisPrediction[]
-  supportLevels    AnalysisSupportLevel[]
-  resistanceLevels AnalysisResistanceLevel[]
+  token             Token                     @relation(fields: [idToken], references: [id])
+  user              User                      @relation(fields: [idUser], references: [id])
+  message           Message                   @relation(fields: [idMessage], references: [id])
+  indicators        AnalysisIndicator[]
+  predictions       AnalysisPrediction[]
+  supportLevels     AnalysisSupportLevel[]
+  resistanceLevels  AnalysisResistanceLevel[]
+  analysisRequest   AnalysisRequest?          @relation(fields: [analysisRequestId], references: [id])
+  analysisRequestId Int?
 
   @@map("analysis_report")
 }
@@ -360,12 +367,6 @@ model ActionPlan {
   @@map("action_plan")
 }
 
-enum ActionPlanStatus {
-  active
-  completed
-  cancelled
-}
-
 model ActionStep {
   id           Int             @id @default(autoincrement())
   idActionPlan Int             @map("id_action_plan")
@@ -383,6 +384,47 @@ model ActionStep {
   @@map("action_step")
 }
 
+model AnalysisRequestStrategy {
+  id                Int      @id @default(autoincrement())
+  idAnalysisRequest Int      @map("id_analysis_request")
+  strategyKey       String   @map("strategy_key")
+  created           DateTime @default(now())
+  modified          DateTime @default(now())
+
+  // Relationships
+  analysisRequest AnalysisRequest @relation(fields: [idAnalysisRequest], references: [id])
+
+  @@map("analysis_request_strategy")
+}
+
+model AnalysisRequest {
+  id        Int           @id @default(autoincrement())
+  uid       String        @unique @default(cuid())
+  idUser    Int           @map("id_user")
+  idMessage Int           @map("id_message")
+  status    RequestStatus @default(token_selection)
+  created   DateTime      @default(now())
+  modified  DateTime      @default(now())
+
+  // Relationships
+  user                    User                      @relation(fields: [idUser], references: [id])
+  message                 Message                   @relation(fields: [idMessage], references: [id])
+  tokens                  Token[]                   @relation("TokensOnAnalysisRequests")
+  AnalysisRequestStrategy AnalysisRequestStrategy[]
+  AnalysisReport          AnalysisReport[]
+
+  @@map("analysis_request")
+}
+
+enum RequestStatus {
+  token_selection
+  strategy_selection
+  analysis_generation
+  action_plan_generation
+  completed
+  failed
+}
+
 enum ActionStepState {
   pending
   in_progress
@@ -395,4 +437,10 @@ enum ActionType {
   buy
   sell
   hold
+}
+
+enum ActionPlanStatus {
+  active
+  completed
+  cancelled
 }

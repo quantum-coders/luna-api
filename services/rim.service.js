@@ -30,6 +30,7 @@ class RIMService {
 		};
 	}
 
+
 	/**
 	 * Generates an image based on the provided prompt.
 	 *
@@ -348,6 +349,22 @@ class RIMService {
 			},
 		}
 	}
+
+	/**
+	 * Creates a new AnalysisRequest and returns a response object.
+	 *
+	 * @param {Object} args - The input arguments containing necessary fields.
+	 * @returns {Promise<Object>} - The response object with analysis request details.
+	 * @throws {Error} - If required fields are missing or if there's a creation error.
+	 */
+	static async createAnalysisRequest(args) {
+		return {
+			rimType: 'strategicTokenAnalysis',
+			responseSystemPrompt: "Generate an answer asking the user if interested in initiating an analysis to identify trading strategy opportunities? We can use information from his wallet or he can select the tokens he'd like to focus on. Ask him if he'd like to proceed!",
+			parameters: {},
+		};
+	}
+
 
 }
 
