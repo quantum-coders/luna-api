@@ -192,6 +192,148 @@ class PortfolioService {
 		}
 		return allAnalysisResults;
 	}
+
+	/**
+	 * Saves the analysis results into the database.
+	 * @param {Int} userId - The ID of the user.
+	 * @param {Int} messageId - The ID of the message associated with the analysis.
+	 * @param {Array} analysisResults - The array of analysis results from generateAnalysisReport.
+	 */
+	static async saveAnalysisResults(userId, messageId, analysisResults) {
+		for (const result of analysisResults) {
+			const {token, strategyConfig, analysis, intervalValue, intervalUnit, startDate, endDate} = result;
+
+			// Find the token in the database
+			const tokenRecord = await prisma.token.findUnique({
+				where: {address: token.address},
+			});
+
+			if (!tokenRecord) {
+				console.error(`Token with address ${token.address} not found in database.`);
+				continue;
+			}
+
+			// Create the analysis report
+			const analysisReport = await prisma.analysisReport.create({
+				data: {
+					idToken: tokenRecord.id,
+					idUser: userId,
+					idMessage: messageId,
+					strategyKey: strategyConfig.key,
+					strategyName: strategyConfig.name,
+					strategyDescription: strategyConfig.description,
+					intervalValue: intervalValue,
+					intervalUnit: intervalUnit,
+					startDate: startDate,
+					endDate: endDate,
+					interpretation: analysis.interpretation,
+					indicators: {
+						create: this.mapIndicators(analysis),
+					},
+					predictions: {
+						create: this.mapPredictions(analysis),
+					},
+					supportLevels: {
+						create: analysis.support_levels.map((level) => ({priceLevel: level})),
+					},
+					resistanceLevels: {
+						create: analysis.resistance_levels.map((level) => ({priceLevel: level})),
+					},
+				},
+			});
+
+
+			/*
+						// Generate action steps based on analysis
+						const steps = this.generateActionSteps(analysis, tokenRecord);
+
+						// Create action plan
+						const actionPlan = await prisma.actionPlan.create({
+							data: {
+								idUser: userId,
+								idToken: tokenRecord.id,
+								idMessage: messageId,
+								strategyKey: strategyConfig.key,
+								status: "active",
+								steps: {
+									create: steps,
+								},
+							},
+						});
+			*/
+
+			console.log(`Analysis report and action plan saved for token ${token.address}`);
+		}
+	}
+
+	/**
+	 * Maps analysis indicators to the format required by the database.
+	 * @param {Object} analysis - The analysis object containing indicator data.
+	 * @returns {Array} - An array of indicator objects.
+	 */
+	static mapIndicators(analysis) {
+		const indicators = [];
+		if (analysis.rsi !== null && analysis.rsi !== undefined) {
+			indicators.push({
+				type: "rsi",
+				value: analysis.rsi,
+			});
+		}
+		if (analysis.macd) {
+			indicators.push({
+				type: "macd",
+				value: analysis.macd,
+			});
+		}
+		if (analysis.bollinger_bands) {
+			indicators.push({
+				type: "bollinger_bands",
+				value: analysis.bollinger_bands,
+			});
+		}
+		if (analysis.moving_averages) {
+			indicators.push({
+				type: "moving_averages",
+				value: analysis.moving_averages,
+			});
+		}
+		if (analysis.volatility !== undefined) {
+			indicators.push({
+				type: "volatility",
+				value: analysis.volatility,
+			});
+		}
+		// Add other indicators as needed
+		return indicators;
+	}
+
+	/**
+	 * Maps analysis predictions to the format required by the database.
+	 * @param {Object} analysis - The analysis object containing prediction data.
+	 * @returns {Array} - An array of prediction objects.
+	 */
+	static mapPredictions(analysis) {
+		const predictions = [];
+		if (analysis.prediction_next_day !== undefined) {
+			predictions.push({
+				timeFrame: "next_day",
+				predictedPrice: analysis.prediction_next_day,
+			});
+		}
+		if (analysis.prediction_one_week !== undefined) {
+			predictions.push({
+				timeFrame: "one_week",
+				predictedPrice: analysis.prediction_one_week,
+			});
+		}
+		if (analysis.prediction_one_month !== undefined) {
+			predictions.push({
+				timeFrame: "one_month",
+				predictedPrice: analysis.prediction_one_month,
+			});
+		}
+		return predictions;
+	}
 }
 
 export default PortfolioService;
