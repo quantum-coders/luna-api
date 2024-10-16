@@ -2,7 +2,7 @@ import AIService from './ai.service.js';
 import SolanaService from './solana.service.js';
 import YoutubeService from './youtube.service.js';
 import {prisma} from "@thewebchimp/primate";
-import {JupiterService} from "./jupiter.service.js";
+import JupiterService from "./jupiter.service.js";
 
 const systemPromptString = `You are Luna AI, a Crypto Solana AI Assistant. Answer the user in a funny enthusiastic way.`;
 
@@ -86,7 +86,7 @@ class RIMService {
 			rimType: 'blink',
 			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
 			parameters: {
-				blinkUrl: 'https://appapi.lunadefi.ai/blinks/memo?message={message}',
+				blinkUrl: `${process.env.BASE_URL}/blinks/memo?message={message}`,
 				blinkParameters: {
 					message: args.message,
 				},
@@ -105,13 +105,20 @@ class RIMService {
 			rimType: 'blink',
 			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
 			parameters: {
-				blinkUrl: 'https://appapi.lunadefi.ai/blinks/transfer-sol?to={to}&amount={amount}',
-				blinkParameters: {
-					to: args.to,
-					amount: args.amount,
-				},
-			},
-		};
+				blinkUrl: `${process.env.BASE_URL}/blinks/transfer-sol?to={to}&amount={amount}`,
+				blinkParameters: [
+					{
+						name: 'to',
+						value: args.to,
+					},
+					{
+						name: 'amount',
+						value: args.amount,
+
+					}
+				]
+			}
+		}
 	}
 
 	/**
@@ -125,11 +132,13 @@ class RIMService {
 			rimType: 'blink',
 			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
 			parameters: {
-				blinkUrl: 'https://appapi.lunadefi.ai/blinks/stake-bonk?amount={amount}&days={days}',
-				blinkParameters: {
-					to: args.to,
-					amount: args.amount,
-				},
+				blinkUrl: `${process.env.BASE_URL}/blinks/stake-bonk?amount={amount}&days={days}`,
+				blinkParameters: [
+					{
+						name: 'amount',
+						value: args.amount,
+					}
+				]
 			},
 		};
 	}
@@ -145,12 +154,17 @@ class RIMService {
 			rimType: 'blink',
 			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
 			parameters: {
-				blinkUrl: 'https://appapi.lunadefi.ai/blinks/swap?inputMint={inputMint}&outputMint={outputMint}&amount={amount}',
-				blinkParameters: {
-					inputMint: args.inputMint,
-					outputMint: args.outputMint,
-					amount: args.amount,
-				},
+				blinkUrl: `${process.env.BASE_URL}/blinks/swap?inputMint={inputMint}&outputMint={outputMint}&amount={amount}&slippageBps={slippageBps}`,
+				blinkParameters: [
+					{
+						name: 'amount',
+						value: args.amount,
+					},
+					{
+						name: 'slippage',
+						value: args.slippage || 0.05,
+					}
+				]
 			},
 		};
 	}
@@ -293,15 +307,46 @@ class RIMService {
 			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
 			parameters: {
 				blinkUrl: `${process.env.BASE_URL}/blinks/create-limit-order?inputMint={inputMint}&outputMint={outputMint}&inAmount={inAmount}&outAmount={outAmount}&expiredAt={expiredAt}`,
-				blinkParameters: {
-					inputMint: args.inputMint,
-					outputMint: args.outputMint,
-					inAmount: args.inAmount,
-					outAmount: args.outAmount,
-					expiredAt: args.expiredAt,
-				},
+				blinkParameters: [
+					{
+						name: 'inAmount',
+						value: args.inAmount,
+					},
+					{
+						name: 'outAmount',
+						value: args.outAmount,
+					},
+					{
+						name: 'expiredAt',
+						value: args.expiredAt,
+					}
+				]
 			},
 		};
+	}
+
+	static async createDCATransaction(args) {
+		return {
+			rimType: 'blink',
+			responseSystemPrompt: systemPromptString + `Generate an answers explaining that the user should fill this fields: ${JSON.stringify(args, null, 2)}. Do not mention the properties, just the fields.`,
+			parameters: {
+				blinkUrl: `${process.env.BASE_URL}/blinks/create-dca-transaction?account={account}&inputMint={inputMint}&outputMint={outputMint}&inAmount={inAmount}&inAmountPerCycle={inAmountPerCycle}&cycleSecondsApart={cycleSecondsApart}`,
+				blinkParameters: [
+					{
+						name: 'inAmount',
+						value: args.inAmount,
+					},
+					{
+						name: 'InAmountPerCycle',
+						value: args.InAmountPerCycle,
+					},
+					{
+						name: 'CyclesSecondsApart',
+						value: args.CyclesSecondsApart,
+					}
+				]
+			},
+		}
 	}
 
 }

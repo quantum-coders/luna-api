@@ -200,6 +200,7 @@ class AIController {
 				try {
 					/// console log name and args
 					const ar = await RIMService[act.name](act.args);
+					console.info("RIM action: ", ar)
 					actionRes.push(ar);
 				} catch (e) {
 					console.error('Error on action', act.name, e);

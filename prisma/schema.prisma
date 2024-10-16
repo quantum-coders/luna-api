@@ -47,6 +47,8 @@ model User {
   linkedAccounts LinkedAccount[]
   blinks         Blink[]
   sessions       Session[]
+  AnalysisReport AnalysisReport[]
+  ActionPlan     ActionPlan[]
 
   @@map("user")
 }
@@ -84,9 +86,11 @@ model Message {
   user          User?     @relation(fields: [idUser], references: [id])
   chat          Chat      @relation(fields: [idChat], references: [id])
 
-  rims         Rim[]
-  variants     Variant[]
-  ActionSolved ActionSolved[]
+  rims           Rim[]
+  variants       Variant[]
+  ActionSolved   ActionSolved[]
+  AnalysisReport AnalysisReport[]
+  ActionPlan     ActionPlan[]
 
   @@map("message")
 }
@@ -206,23 +210,189 @@ model Session {
 }
 
 model Token {
-  id                Int       @id @default(autoincrement())
-  uid               String    @unique @default(cuid())
-  address           String    @unique
+  id                Int              @id @default(autoincrement())
+  uid               String           @unique @default(cuid())
+  address           String           @unique
   name              String?
   symbol            String?
   decimals          Int?
   logoURI           String?
-  tags              String?   @default("[]")
-  dailyVolume       Float?    @map("daily_volume")
-  freezeAuthority   String?   @map("freeze_authority")
-  mintAuthority     String?   @map("mint_authority")
-  permanentDelegate String?   @map("permanent_delegate")
-  mintedAt          DateTime? @map("minted_at")
-  coingeckoId       String?   @map("coingecko_id")
-  metas             Json      @default("{}")
-  created           DateTime  @default(now())
-  modified          DateTime  @updatedAt
+  tags              String?          @default("[]")
+  dailyVolume       Float?           @map("daily_volume")
+  freezeAuthority   String?          @map("freeze_authority")
+  mintAuthority     String?          @map("mint_authority")
+  permanentDelegate String?          @map("permanent_delegate")
+  mintedAt          DateTime?        @map("minted_at")
+  coingeckoId       String?          @map("coingecko_id")
+  metas             Json             @default("{}")
+  created           DateTime         @default(now())
+  modified          DateTime         @updatedAt
+  AnalysisReport    AnalysisReport[]
+  ActionPlan        ActionPlan[]
 
   @@map("tokens")
+}
+
+model JupiterOrder {
+  id                   Int       @id @default(autoincrement()) @map("id") // Unique identifier for the order
+  publicKey            String    @unique @map("public_key") // Public key of the order (Unique)
+  maker                String?   @map("maker") // Public key of the order creator (Optional)
+  inputMint            String?   @map("input_mint") // Public key of the input token (Optional)
+  outputMint           String?   @map("output_mint") // Public key of the output token (Optional)
+  originalMakingAmount String?   @map("original_making_amount") // Original amount offered in the order (Optional)
+  originalTakingAmount String?   @map("original_taking_amount") // Original amount required in the order (Optional)
+  makingAmount         String?   @map("making_amount") // Remaining amount in the order (offered) (Optional)
+  takingAmount         String?   @map("taking_amount") // Remaining amount in the order (required) (Optional)
+  makerInputAccount    String?   @map("maker_input_account") // Public key of the maker's input account (Optional)
+  makerOutputAccount   String?   @map("maker_output_account") // Public key of the maker's output account (Optional)
+  reserve              String?   @map("reserve") // Public key of the reserve associated with the order (Optional)
+  borrowMakingAmount   String?   @map("borrow_making_amount") // Amount borrowed to make the order, if any (Optional)
+  expiredAt            DateTime? @map("expired_at") // Expiration date of the order (can be null)
+  base                 String?   @map("base") // Public key of the base token (Optional)
+  referral             String?   @map("referral") // Public key of the referral, if any (can be null)
+  waiting              Boolean   @map("waiting") // Status of the order (waiting or not)
+  created              DateTime  @default(now())
+  modified             DateTime  @updatedAt
+
+  @@map("jupiter_order") // Map the model to the jupiter_order table
+}
+
+model AnalysisReport {
+  id                  Int      @id @default(autoincrement())
+  uid                 String   @unique @default(cuid())
+  idToken             Int      @map("id_token")
+  idUser              Int      @map("id_user")
+  idMessage           Int      @map("id_message")
+  strategyKey         String   @map("strategy_key")
+  strategyName        String   @map("strategy_name")
+  strategyDescription String   @map("strategy_description")
+  intervalValue       Int      @map("interval_value")
+  intervalUnit        String   @map("interval_unit")
+  startDate           DateTime @map("start_date")
+  endDate             DateTime @map("end_date")
+  interpretation      String
+  created             DateTime @default(now())
+  modified            DateTime @default(now())
+
+  // Relationships
+  token            Token                     @relation(fields: [idToken], references: [id])
+  user             User                      @relation(fields: [idUser], references: [id])
+  message          Message                   @relation(fields: [idMessage], references: [id])
+  indicators       AnalysisIndicator[]
+  predictions      AnalysisPrediction[]
+  supportLevels    AnalysisSupportLevel[]
+  resistanceLevels AnalysisResistanceLevel[]
+
+  @@map("analysis_report")
+}
+
+model AnalysisIndicator {
+  id               Int      @id @default(autoincrement())
+  idAnalysisReport Int      @map("id_analysis_report")
+  type             String
+  value            Json
+  created          DateTime @default(now())
+  modified         DateTime @default(now())
+
+  // Relationships
+  analysisReport AnalysisReport @relation(fields: [idAnalysisReport], references: [id])
+
+  @@map("analysis_indicator")
+}
+
+model AnalysisPrediction {
+  id               Int      @id @default(autoincrement())
+  idAnalysisReport Int      @map("id_analysis_report")
+  timeFrame        String   @map("time_frame")
+  predictedPrice   Float    @map("predicted_price")
+  created          DateTime @default(now())
+  modified         DateTime @default(now())
+
+  // Relationships
+  analysisReport AnalysisReport @relation(fields: [idAnalysisReport], references: [id])
+
+  @@map("analysis_prediction")
+}
+
+model AnalysisSupportLevel {
+  id               Int      @id @default(autoincrement())
+  idAnalysisReport Int      @map("id_analysis_report")
+  priceLevel       Float    @map("price_level")
+  created          DateTime @default(now())
+  modified         DateTime @default(now())
+
+  // Relationships
+  analysisReport AnalysisReport @relation(fields: [idAnalysisReport], references: [id])
+
+  @@map("analysis_support_level")
+}
+
+model AnalysisResistanceLevel {
+  id               Int      @id @default(autoincrement())
+  idAnalysisReport Int      @map("id_analysis_report")
+  priceLevel       Float    @map("price_level")
+  created          DateTime @default(now())
+  modified         DateTime @default(now())
+
+  // Relationships
+  analysisReport AnalysisReport @relation(fields: [idAnalysisReport], references: [id])
+
+  @@map("analysis_resistance_level")
+}
+
+model ActionPlan {
+  id          Int              @id @default(autoincrement())
+  uid         String           @unique @default(cuid())
+  idUser      Int              @map("id_user")
+  idToken     Int              @map("id_token")
+  idMessage   Int              @map("id_message")
+  strategyKey String           @map("strategy_key")
+  status      ActionPlanStatus @default(active)
+  created     DateTime         @default(now())
+  modified    DateTime         @default(now())
+
+  // Relationships
+  user    User         @relation(fields: [idUser], references: [id])
+  token   Token        @relation(fields: [idToken], references: [id])
+  message Message      @relation(fields: [idMessage], references: [id])
+  steps   ActionStep[]
+
+  @@map("action_plan")
+}
+
+enum ActionPlanStatus {
+  active
+  completed
+  cancelled
+}
+
+model ActionStep {
+  id           Int             @id @default(autoincrement())
+  idActionPlan Int             @map("id_action_plan")
+  order        Int
+  description  String
+  state        ActionStepState @default(pending)
+  actionType   ActionType      @map("action_type")
+  parameters   Json            @default("{}")
+  created      DateTime        @default(now())
+  modified     DateTime        @default(now())
+
+  // Relationships
+  actionPlan ActionPlan @relation(fields: [idActionPlan], references: [id])
+
+  @@map("action_step")
+}
+
+enum ActionStepState {
+  pending
+  in_progress
+  completed
+  failed
+}
+
+enum ActionType {
+  monitor
+  buy
+  sell
+  hold
 }

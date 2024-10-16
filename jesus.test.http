@@ -85,7 +85,15 @@ POST http://localhost:1337/blinks/create-limit-order?inputMint=So111111111111111
 Content-Type: application/json
 
 {
-    "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+  "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
 }
 
+###
+
+POST http://localhost:1337/blinks/create-dca-transaction?account=HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr&inputMint=So11111111111111111111111111111111111111112&outputMint=4k3Dyjzvzp8e2WXLDwK8bkgGoGNt5UPTadMsRDp4y5Nn&inAmount=1000&inAmountPerCycle=100&cycleSecondsApart=604800&startDate=2024-05-01T00:00:00Z
+Content-Type: application/json
+
+{
+  "account": "HFJEhqTUPKKWvhwVeQS5qjSP373kMUFpNuiqMMyXZ2Gr"
+}
 

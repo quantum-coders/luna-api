@@ -1,5 +1,5 @@
 import {prisma} from "@thewebchimp/primate";
-import {JupiterService} from "./jupiter.service.js";
+import JupiterService from "./jupiter.service.js";
 
 /**
  * A service class for fetching token data from the Jup API.
@@ -99,9 +99,11 @@ class TokensService {
 			const res =  await JupiterService.queryPriceApi(`ids=${inputMint},${outputMint}`);
 			return res;
 		} catch(e){
+			console.error("Error: ", e);
 			throw new Error('Error :', e.message);
 		}
 	}
+	
 }
 
 export default TokensService;

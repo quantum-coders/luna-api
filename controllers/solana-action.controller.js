@@ -6,7 +6,7 @@ import UserService from '../entities/users/user.service.js';
 import BlinkService from '../services/blink.service.js';
 import {PrimateService} from '@thewebchimp/primate';
 import MetaplexService from "../services/metaplex.service.js";
-import {JupiterService} from "../services/jupiter.service.js";
+import JupiterService from "../services/jupiter.service.js";
 import BN from "bn.js";
 
 class SolanaActionController {
@@ -81,6 +81,11 @@ class SolanaActionController {
 				{
 					'pathPatter': '/blinks/create-limit-order',
 					'apiPath': '/blinks/create-limit-order',
+				},
+				{
+					'pathPattern': '/blinks/create-dca-transaction',
+					'apiPath': '/blinks/create-dca-transaction',
+
 				}
 
 			],
@@ -162,6 +167,7 @@ class SolanaActionController {
 			'/stake-bonk': SolanaActionController.handlePostBonkStake,
 			'/mint-nft': SolanaActionController.handlePostMintNFT,
 			'/create-limit-order': SolanaActionController.handleCreateLimitOrder,
+			'/create-dca-transaction': SolanaActionController.handleCreateDcaTransaction,
 			// TODO: Refactor Nfts implementation
 			'/create-nft-collection': SolanaActionController.handlePostCreateNFTCollection,
 			'/create-candy-machine': SolanaActionController.handlePostCreateCandyMachine,
@@ -429,6 +435,46 @@ class SolanaActionController {
 					],
 				},
 			},
+			'/create-dca-transaction': {
+				title: 'Create DCA Transaction',
+				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
+				description: 'Create a DCA Transaction',
+				links: {
+					actions: [
+						{
+							label: 'Create a DCA Transaction',
+							href: '/blinks/create-dca-transaction?account={account}&inputMint={inputMint}&outputMint={outputMint}&inAmount={inAmount}&inAmountPerCycle={inAmountPerCycle}&cycleSecondsApart={cycleSecondsApart}',
+							parameters: [
+								{
+									label: 'Input Mint',
+									name: 'inputMint',
+									required: true,
+								},
+								{
+									label: 'Output Mint',
+									name: 'outputMint',
+									required: true,
+								},
+								{
+									label: 'Input Amount',
+									name: 'inAmount',
+									required: true,
+								},
+								{
+									label: 'In Amount Per Cycle',
+									name: 'InAmountPerCycle',
+									required: true,
+								},
+								{
+									label: 'Cycles Seconds Apart',
+									name: 'CyclesSecondsApart',
+									required: true,
+								}
+							],
+						},
+					],
+				},
+			},
 			'/create-limit-order': {
 				title: 'Create Limit Order',
 				icon: 'https://app.lunadefi.ai/blinks-image.jpg',
@@ -436,8 +482,8 @@ class SolanaActionController {
 				links: {
 					actions: [
 						{
-							label: 'Create limit order',
-							href: '/blinks/create-limit-order?inputMint={inputMint}&outputMint={outputMint}&inAmount={inAmount}&outAmount={outAmount}&expiredAt={expiredAt}',
+							label: 'Create Limit Order',
+							href: '/blinks/create-limit-order?account={account}&inputMint={inputMint}&outputMint={outputMint}&inAmount={inAmount}&outAmount={outAmount}&expiredAt={expiredAt}',
 							parameters: [
 								{
 									label: 'Input Mint',
@@ -460,7 +506,7 @@ class SolanaActionController {
 									required: true,
 								},
 								{
-									label: 'Expiration Timestamp',
+									label: 'Expired At',
 									name: 'expiredAt',
 									required: false,
 								},
@@ -470,6 +516,45 @@ class SolanaActionController {
 				},
 			}
 		};
+	}
+
+	static async handleCreateDcaTransaction(req, res) {
+		const {account} = req.body;
+		const inputMint = req.query.inputMint;
+		const outputMint = req.query.outputMint;
+		const inAmount = req.query.inAmount;
+		const inAmountPerCycle = req.query.inAmountPerCycle;
+		const cycleSecondsApart = req.query.cycleSecondsApart;
+
+		if (!account || !inputMint || !outputMint || !inAmount || !inAmountPerCycle || !cycleSecondsApart) {
+			return res.respond({
+				status: 400,
+				message: `Bad Request: parameter missing: ${!account ? 'account' : !inputMint ? 'inputMint' : !outputMint ? 'outputMint' : !inAmount ? 'inAmount' : !inAmountPerCycle ? 'inAmountPerCycle' : 'cycleSecondsApart'}`,
+			});
+		}
+
+		try {
+			const encodedTransaction = await JupiterService.createDCA(
+				account,
+				inputMint,
+				outputMint,
+				inAmount,
+				inAmountPerCycle,
+				cycleSecondsApart,
+			);
+			return res.respond({
+				status: 200,
+				data: {transaction: encodedTransaction},
+				props: {transaction: encodedTransaction},
+				message: 'Transaction created successfully',
+			});
+		} catch (error) {
+			console.error(error);
+			return res.respond({
+				status: 500,
+				message: 'Error processing transaction: ' + error.message,
+			});
+		}
 	}
 
 	static async handleCreateLimitOrder(req, res) {

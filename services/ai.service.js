@@ -455,18 +455,22 @@ class AIService {
 					parameters: {
 						type: 'object',
 						properties: {
-							from: {
+							inputMint: {
 								type: 'string',
-								description: 'The token to swap from.',
+								description: 'The token address to swap from.',
 							},
-							to: {
+							outputMint: {
 								type: 'string',
-								description: 'The token to swap to.',
+								description: 'The token address to swap to.',
 							},
 							amount: {
 								type: 'number',
 								description: 'The amount of the token to swap.',
 							},
+							slippage: {
+								type: 'number',
+								description: 'The slippage percentage for the swap. Default 0.05',
+							}
 						},
 					},
 				},
@@ -561,8 +565,40 @@ class AIService {
 							},
 							expiredAt: {
 								type: 'number',
-								description: 'The expiration timestamp (optional).',
+								description: 'The expiration timestamp for the order.',
 							},
+						},
+					},
+				},
+			},
+			{
+				type: 'function',
+				function: {
+					name: 'createDCATransaction',
+					description: 'Creates a DCA (Dollar-Cost Averaging) transaction.',
+					parameters: {
+						type: 'object',
+						properties: {
+							inputMint: {
+								type: 'string',
+								description: 'The mint address of the input token.',
+							},
+							outputMint: {
+								type: 'string',
+								description: 'The mint address of the output token.',
+							},
+							inAmount: {
+								type: 'string',
+								description: 'The input token amount for the order.',
+							},
+							InAmountPerCycle: {
+								type: 'string',
+								description: 'The input token amount per cycle.',
+							},
+							CyclesSecondsApart: {
+								type: 'number',
+								description: 'The seconds between cycles.',
+							}
 						},
 					},
 				},

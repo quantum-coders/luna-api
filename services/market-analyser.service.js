@@ -213,6 +213,7 @@ class MarketAnalyserService {
 
 	/**
 	 * Performs advanced trading analysis on historical price data.
+
 	 * @param {object[]} historicalData - Array of historical price data objects.
 	 * @param {number} intervalValue - The number of intervals for the analysis period.
 	 * @param {string} intervalUnit - The unit of time for the interval ('years', 'months', 'weeks', 'days').
